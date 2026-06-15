@@ -1,0 +1,1962 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>指揮中心 · john117</title>
+
+<!-- React 18 + Babel -->
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<!-- Inter font (Intel uses Clear Sans; Inter is the closest Google Fonts equivalent) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+/* ── Base reset ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #root { height: 100%; }
+body {
+  background: #0A1628;
+  font-family: 'Inter', 'Clear Sans', 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior: none;
+}
+#root { display: flex; flex-direction: column; }
+
+/* ── Scrollbars ── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #1E3454; border-radius: 2px; }
+
+/* ── Form inputs dark mode ── */
+input, select, textarea { color-scheme: dark; }
+
+/* ── Focus visible ── */
+button:focus-visible { outline: 2px solid #00AEEF; outline-offset: 2px; }
+
+/* ── API Key overlay ── */
+#apikey-overlay {
+  position: fixed; inset: 0;
+  background: rgba(6, 14, 26, 0.97);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999; backdrop-filter: blur(6px);
+  padding: 20px;
+}
+#apikey-overlay.hidden { display: none; }
+.ak-box {
+  background: #0D1E3A;
+  border: 1px solid #1E3454;
+  border-radius: 16px;
+  border-top: 3px solid #0068B5;
+  padding: 32px 28px;
+  max-width: 420px; width: 100%;
+  box-shadow: 0 16px 60px rgba(0,0,0,0.7);
+}
+.ak-logo {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 22px;
+}
+.ak-dot { width: 10px; height: 10px; border-radius: 3px; background: #0068B5; }
+.ak-brand { font-weight: 800; font-size: 18px; color: #fff; letter-spacing: -.4px; }
+.ak-brand span { color: #00AEEF; margin: 0 6px; font-weight: 300; }
+.ak-sub { font-size: 11px; color: #6A8EBF; background: rgba(0,174,239,.1);
+  padding: 2px 8px; border-radius: 3px; font-family: monospace; }
+.ak-title { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+.ak-desc { font-size: 13px; color: #6A8EBF; line-height: 1.6; margin-bottom: 20px; }
+.ak-input {
+  width: 100%; padding: 12px 14px;
+  background: #060E1A; border: 1px solid #1E3454;
+  border-radius: 8px; color: #fff; font-size: 13px;
+  font-family: monospace; outline: none; margin-bottom: 12px;
+  transition: border-color .2s;
+}
+.ak-input:focus { border-color: #0068B5; }
+.ak-btn {
+  width: 100%; padding: 12px;
+  background: #0068B5; color: #fff; border: none;
+  border-radius: 40px; font-size: 14px; font-weight: 600;
+  cursor: pointer; font-family: inherit; letter-spacing: .02em;
+  transition: background .2s;
+}
+.ak-btn:hover { background: #0080D8; }
+.ak-note { font-size: 11px; color: #364F72; margin-top: 12px; text-align: center; line-height: 1.5; }
+
+/* ── Status bar (bottom-right) ── */
+.ak-bar {
+  position: fixed; bottom: 72px; right: 16px; z-index: 200;
+  display: flex; align-items: center; gap: 8px;
+  background: #0D1E3A; border: 1px solid #1E3454;
+  padding: 5px 12px; border-radius: 20px; font-size: 11px;
+}
+.ak-bar .dot { color: #3DDC84; }
+.ak-bar button {
+  background: transparent; border: none; color: #6A8EBF;
+  cursor: pointer; font-size: 11px; font-family: inherit; padding: 0;
+}
+.ak-bar button:hover { color: #fff; }
+
+/* ── Provider tab buttons ── */
+.ak-tabs { display:flex; gap:0; margin-bottom:20px; border:1px solid #1E3454; border-radius:8px; overflow:hidden; }
+.ak-tab { flex:1; padding:9px 0; font-size:12px; font-weight:600; cursor:pointer;
+  background:transparent; border:none; color:#6A8EBF; font-family:inherit;
+  transition:all .2s; letter-spacing:.02em; }
+.ak-tab.active { background:#0068B5; color:#fff; }
+.ak-tab:first-child { border-right:1px solid #1E3454; }
+/* Model selector */
+.ak-model { width:100%; padding:10px 12px; background:#060E1A; border:1px solid #1E3454;
+  border-radius:8px; color:#fff; font-size:12px; font-family:inherit; outline:none;
+  margin-bottom:12px; cursor:pointer; }
+.ak-model:focus { border-color:#0068B5; }
+/* Status bar provider badge */
+.ak-provider-badge { font-size:10px; padding:2px 7px; border-radius:3px;
+  font-family:monospace; letter-spacing:.03em; }
+/* OR = OpenRouter hint */
+.ak-or-hint { font-size:11px; color:#00AEEF; margin-bottom:10px; line-height:1.5; }
+
+/* ── Login gate (3-tier) ── */
+#login-overlay { position:fixed; inset:0; z-index:11000; background:#060E1A;
+  display:flex; align-items:center; justify-content:center; padding:20px; }
+#login-overlay::before { content:""; position:absolute; width:760px; height:760px; right:-220px; top:-260px;
+  background:radial-gradient(circle, rgba(0,104,181,.22), transparent 62%); pointer-events:none; }
+#login-overlay::after { content:""; position:absolute; left:-220px; bottom:-260px; width:620px; height:620px;
+  background:radial-gradient(circle, rgba(0,174,239,.10), transparent 62%); pointer-events:none; }
+#login-overlay.hidden { display:none; }
+body.pre-login #apikey-overlay { display:none !important; }
+body.role-viewer #apikey-overlay { display:none !important; }
+body.role-viewer #ak-bar { display:none !important; }
+.lg-box { position:relative; background:#0D1E3A; border:1px solid #1E3454; border-radius:16px;
+  border-top:3px solid #0068B5; padding:32px 28px; max-width:404px; width:100%;
+  box-shadow:0 16px 60px rgba(0,0,0,.7); }
+.lg-logo { display:flex; align-items:center; gap:10px; margin-bottom:22px; }
+.lg-dot { width:10px; height:10px; border-radius:3px; background:#0068B5; }
+.lg-brand { font-weight:800; font-size:18px; color:#fff; letter-spacing:-.4px; }
+.lg-brand span { color:#00AEEF; margin:0 6px; font-weight:300; }
+.lg-sub { font-size:11px; color:#6A8EBF; background:rgba(0,174,239,.1);
+  padding:2px 8px; border-radius:3px; font-family:monospace; }
+.lg-title { font-size:18px; font-weight:700; color:#fff; margin-bottom:6px; }
+.lg-desc { font-size:13px; color:#6A8EBF; line-height:1.6; margin-bottom:22px; }
+.lg-label { display:block; font-size:11px; color:#6A8EBF; letter-spacing:.05em;
+  margin-bottom:7px; font-family:monospace; text-transform:uppercase; }
+.lg-roles { display:flex; gap:7px; margin-bottom:18px; }
+.lg-role { flex:1; padding:10px 4px; border:1px solid #1E3454; border-radius:10px;
+  background:#060E1A; color:#9FB6D6; font-size:13px; font-weight:600; cursor:pointer;
+  font-family:inherit; transition:.15s; }
+.lg-role span { display:block; font-family:monospace; font-size:9px; color:#48648C;
+  margin-top:3px; letter-spacing:.04em; }
+.lg-role.on { border-color:#0068B5; background:rgba(0,174,239,.12); color:#fff; }
+.lg-role.on span { color:#00AEEF; }
+.lg-input { width:100%; padding:12px 14px; background:#060E1A; border:1px solid #1E3454;
+  border-radius:8px; color:#fff; font-size:13px; font-family:monospace; outline:none;
+  margin-bottom:14px; transition:border-color .2s; }
+.lg-input:focus { border-color:#0068B5; }
+.lg-btn { width:100%; padding:13px; background:#0068B5; color:#fff; border:none;
+  border-radius:40px; font-size:14px; font-weight:600; cursor:pointer; font-family:inherit;
+  letter-spacing:.02em; transition:background .2s; margin-top:4px; }
+.lg-btn:hover { background:#0080D8; }
+.lg-err { font-size:12px; color:#FF6B6B; margin-bottom:6px; display:none; }
+.lg-err.show { display:block; }
+.lg-hint { font-size:11px; color:#46618C; margin-top:14px; text-align:center; line-height:1.6; }
+</style>
+</head>
+<body>
+
+<!-- API Key Gate -->
+<div id="apikey-overlay">
+  <div class="ak-box">
+    <div class="ak-logo">
+      <div class="ak-dot"></div>
+      <span class="ak-brand">指揮中心<span>·</span>john117</span>
+      <span class="ak-sub">DASHBOARD</span>
+    </div>
+    <div class="ak-title">🔑 設定 AI 提供商</div>
+    <div class="ak-desc">選擇 AI 提供商並輸入對應的 API Key。Key 僅儲存於瀏覽器本地，不經過任何第三方伺服器。</div>
+
+    <!-- Provider Tabs -->
+    <div class="ak-tabs">
+      <button class="ak-tab active" id="tab-anthropic" onclick="switchProvider('anthropic')">
+        🔵 Anthropic 直連
+      </button>
+      <button class="ak-tab" id="tab-openrouter" onclick="switchProvider('openrouter')">
+        🌐 OpenRouter
+      </button>
+    </div>
+
+    <!-- Anthropic Panel -->
+    <div id="panel-anthropic">
+      <div class="ak-or-hint">直接連接 Anthropic API，使用 Claude 系列模型。需要 Anthropic API Key。</div>
+      <input class="ak-input" type="password" id="ak-input-anthropic"
+        placeholder="sk-ant-api03-..." autocomplete="off" />
+    </div>
+
+    <!-- OpenRouter Panel -->
+    <div id="panel-openrouter" style="display:none">
+      <div class="ak-or-hint">透過 OpenRouter 存取 Claude、GPT-4o、Gemini、DeepSeek、Llama 等 300+ 模型。</div>
+      <input class="ak-input" type="password" id="ak-input-openrouter"
+        placeholder="sk-or-v1-..." autocomplete="off" />
+      <select class="ak-model" id="ak-model-select">
+        <optgroup label="── Anthropic Claude ──">
+          <option value="anthropic/claude-sonnet-4-6">Claude Sonnet 4.6（推薦）</option>
+          <option value="anthropic/claude-opus-4-5">Claude Opus 4.5</option>
+          <option value="anthropic/claude-haiku-4-5">Claude Haiku 4.5（快速省費）</option>
+        </optgroup>
+        <optgroup label="── OpenAI ──">
+          <option value="openai/gpt-4o">GPT-4o</option>
+          <option value="openai/gpt-4o-mini">GPT-4o Mini（省費）</option>
+          <option value="openai/o3-mini">o3-mini（推理）</option>
+        </optgroup>
+        <optgroup label="── Google ──">
+          <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash</option>
+          <option value="google/gemini-2.5-pro-preview">Gemini 2.5 Pro</option>
+        </optgroup>
+        <optgroup label="── DeepSeek ──">
+          <option value="deepseek/deepseek-chat-v3-5">DeepSeek V3.5</option>
+          <option value="deepseek/deepseek-r1">DeepSeek R1（推理）</option>
+        </optgroup>
+        <optgroup label="── Meta Llama ──">
+          <option value="meta-llama/llama-4-maverick">Llama 4 Maverick</option>
+          <option value="meta-llama/llama-3.3-70b-instruct">Llama 3.3 70B</option>
+        </optgroup>
+        <optgroup label="── Mistral ──">
+          <option value="mistralai/mistral-large-2411">Mistral Large 2411</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <button class="ak-btn" id="ak-btn">確認並進入指揮中心 →</button>
+    <div class="ak-note">Key 存於 localStorage，清除瀏覽器資料後需重新輸入</div>
+  </div>
+</div>
+
+<!-- API Key Status Bar -->
+<div class="ak-bar" id="ak-bar" style="display:none">
+  <span class="dot">●</span>
+  <span id="ak-bar-label" style="color:#B8CCE8">API Key 已設定</span>
+  <span id="ak-provider-badge" class="ak-provider-badge"></span>
+  <button onclick="clearKey()">清除</button>
+  <button onclick="switchProviderUI()">切換</button>
+</div>
+
+<!-- 3-Tier Login Gate -->
+<div id="login-overlay">
+  <div class="lg-box">
+    <div class="lg-logo">
+      <div class="lg-dot"></div>
+      <span class="lg-brand">指揮中心<span>·</span>john117</span>
+      <span class="lg-sub">LOGIN</span>
+    </div>
+    <div class="lg-title">登入指揮中心</div>
+    <div class="lg-desc">選擇登入身分並輸入帳號密碼。三種權限層級對應不同操作範圍。</div>
+
+    <label class="lg-label">登入身分 ROLE</label>
+    <div class="lg-roles" id="lg-roles">
+      <button type="button" class="lg-role" data-role="viewer" onclick="lgPick('viewer')">檢視者<span>VIEWER</span></button>
+      <button type="button" class="lg-role on" data-role="editor" onclick="lgPick('editor')">編輯者<span>EDITOR</span></button>
+      <button type="button" class="lg-role" data-role="admin" onclick="lgPick('admin')">管理員<span>ADMIN</span></button>
+    </div>
+
+    <div id="lg-user-field">
+      <label class="lg-label">公司帳號 / Email</label>
+      <input class="lg-input" type="text" id="lg-user" placeholder="name@msi.com" autocomplete="off">
+    </div>
+    <label class="lg-label" id="lg-pass-label">密碼</label>
+    <input class="lg-input" type="password" id="lg-pass" placeholder="請輸入密碼" autocomplete="off">
+
+    <div class="lg-err" id="lg-err"></div>
+    <button class="lg-btn" id="lg-btn" onclick="lgLogin()">登入 →</button>
+    <div class="lg-hint" id="lg-hint"></div>
+  </div>
+</div>
+
+<script>
+/* ═══ 3-TIER LOGIN · front-end demo gate ═══
+   admin  · 完整權限 (新增/編輯/刪除/AI/設定)
+   editor · 可新增·編輯·勾選·AI 助手
+   viewer · 免帳號·通行碼·唯讀瀏覽 (不消耗 Token) */
+const LG_CREDS = {
+  admin:  { email:"samctsai@msi.com", pass:"Sam@1060", hint:"管理員 · 完整權限：新增 / 編輯 / 刪除任務、AI 助手、管理 API Key" },
+  editor: { email:"user@msi.com",     pass:"2377",     hint:"編輯者 · 可新增 / 編輯任務、勾選完成、使用 AI 助手" },
+  viewer: {                           pass:"32345599", hint:"檢視者 · 免帳號，輸入通行碼，唯讀瀏覽（不消耗 Token）" },
+};
+let _lgRole = "editor";
+function lgPick(r){
+  _lgRole = r;
+  document.querySelectorAll("#lg-roles .lg-role").forEach(b=>b.classList.toggle("on", b.dataset.role===r));
+  const isV = r==="viewer";
+  document.getElementById("lg-user-field").style.display = isV ? "none" : "";
+  document.getElementById("lg-pass-label").textContent = isV ? "通行碼 Passcode" : "密碼";
+  document.getElementById("lg-hint").textContent = LG_CREDS[r].hint;
+  document.getElementById("lg-err").classList.remove("show");
+}
+function lgApplyRole(role){
+  window.__MC_ROLE__ = role;
+  document.body.classList.remove("role-viewer","role-editor","role-admin");
+  document.body.classList.add("role-"+role);
+  window.dispatchEvent(new CustomEvent("mc-role",{detail:role}));
+}
+function lgLogin(){
+  const r=_lgRole, cr=LG_CREDS[r];
+  const email=(document.getElementById("lg-user").value||"").trim();
+  const pass=document.getElementById("lg-pass").value||"";
+  const ok = r==="viewer" ? (pass===cr.pass) : (email.toLowerCase()===cr.email && pass===cr.pass);
+  if(!ok){
+    const e=document.getElementById("lg-err");
+    e.textContent = r==="viewer" ? "通行碼錯誤，請重新輸入。" : "帳號或密碼錯誤，請確認後再試。";
+    e.classList.add("show");
+    return;
+  }
+  const name = r==="viewer" ? "訪客" : email.split("@")[0];
+  const sess = { role:r, name, email: r==="viewer"?"":email, t:Date.now() };
+  localStorage.setItem("mc_role_session", JSON.stringify(sess));
+  lgApplyRole(r);
+  document.body.classList.remove("pre-login");
+  document.getElementById("login-overlay").classList.add("hidden");
+}
+function lgLogout(){
+  localStorage.removeItem("mc_role_session");
+  location.reload();
+}
+/* immediate init (runs during parse, before React mount) */
+(function(){
+  let sess=null;
+  try{ sess=JSON.parse(localStorage.getItem("mc_role_session")||"null"); }catch(e){}
+  if(sess && sess.role && LG_CREDS[sess.role]){
+    lgApplyRole(sess.role);
+    document.getElementById("login-overlay").classList.add("hidden");
+  } else {
+    window.__MC_ROLE__ = "viewer";
+    document.body.classList.add("pre-login");
+    lgPick("editor");
+  }
+  ["lg-user","lg-pass"].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.addEventListener("keydown", e=>{ if(e.key==="Enter") lgLogin(); });
+  });
+})();
+</script>
+
+<div id="root"></div>
+
+<script>
+/* ══════════════════════════════════════════
+   PROVIDER + API KEY MANAGEMENT
+   Supports:  anthropic (direct) | openrouter
+   Storage:   localStorage
+   Window:    __MC_KEY__, __MC_PROVIDER__, __MC_OR_MODEL__
+══════════════════════════════════════════ */
+
+let _currentProvider = 'anthropic';
+
+function switchProvider(p){
+  _currentProvider = p;
+  document.getElementById('tab-anthropic').classList.toggle('active', p==='anthropic');
+  document.getElementById('tab-openrouter').classList.toggle('active', p==='openrouter');
+  document.getElementById('panel-anthropic').style.display = p==='anthropic'?'block':'none';
+  document.getElementById('panel-openrouter').style.display = p==='openrouter'?'block':'none';
+}
+
+function switchProviderUI(){
+  // Called from status bar "切換" button — re-show overlay
+  document.getElementById('apikey-overlay').classList.remove('hidden');
+  document.getElementById('ak-bar').style.display = 'none';
+}
+
+function updateStatusBar(){
+  const p = window.__MC_PROVIDER__ || 'anthropic';
+  const badge = document.getElementById('ak-provider-badge');
+  const label = document.getElementById('ak-bar-label');
+  if(p === 'openrouter'){
+    const model = window.__MC_OR_MODEL__ || '';
+    const shortModel = model.split('/').pop() || 'OpenRouter';
+    badge.textContent = '🌐 OR · ' + shortModel;
+    badge.style.background = 'rgba(0,174,239,0.15)';
+    badge.style.color = '#00AEEF';
+    label.textContent = 'OpenRouter';
+  } else {
+    badge.textContent = '🔵 Anthropic';
+    badge.style.background = 'rgba(0,104,181,0.2)';
+    badge.style.color = '#0068B5';
+    label.textContent = 'API Key 已設定';
+  }
+}
+
+function saveKey(){
+  const p = _currentProvider;
+  let k = '';
+  if(p === 'anthropic'){
+    k = document.getElementById('ak-input-anthropic').value.trim();
+    if(!k.startsWith('sk-ant')){
+      alert('請輸入有效的 Anthropic API Key（以 sk-ant 開頭）');
+      return;
+    }
+    localStorage.setItem('mc_key', k);
+    localStorage.setItem('mc_provider', 'anthropic');
+    window.__MC_KEY__ = k;
+    window.__MC_PROVIDER__ = 'anthropic';
+    window.__MC_OR_MODEL__ = '';
+  } else {
+    k = document.getElementById('ak-input-openrouter').value.trim();
+    if(!k){
+      alert('請輸入 OpenRouter API Key');
+      return;
+    }
+    const model = document.getElementById('ak-model-select').value;
+    localStorage.setItem('mc_or_key', k);
+    localStorage.setItem('mc_or_model', model);
+    localStorage.setItem('mc_provider', 'openrouter');
+    window.__MC_KEY__ = k;
+    window.__MC_PROVIDER__ = 'openrouter';
+    window.__MC_OR_MODEL__ = model;
+  }
+  document.getElementById('apikey-overlay').classList.add('hidden');
+  document.getElementById('ak-bar').style.display = 'flex';
+  updateStatusBar();
+}
+
+function clearKey(){
+  if(!confirm('確定清除所有設定？')) return;
+  ['mc_key','mc_or_key','mc_or_model','mc_provider'].forEach(k=>localStorage.removeItem(k));
+  window.__MC_KEY__ = '';
+  window.__MC_PROVIDER__ = '';
+  window.__MC_OR_MODEL__ = '';
+  location.reload();
+}
+
+function getProviderConfig(){
+  return {
+    provider: window.__MC_PROVIDER__ || 'anthropic',
+    key: window.__MC_KEY__ || '',
+    orModel: window.__MC_OR_MODEL__ || 'anthropic/claude-sonnet-4-6',
+  };
+}
+
+window.addEventListener('DOMContentLoaded', ()=>{
+  const provider = localStorage.getItem('mc_provider') || '';
+  if(provider === 'anthropic'){
+    const k = localStorage.getItem('mc_key') || '';
+    if(k){ window.__MC_KEY__=k; window.__MC_PROVIDER__='anthropic'; }
+  } else if(provider === 'openrouter'){
+    const k = localStorage.getItem('mc_or_key') || '';
+    const m = localStorage.getItem('mc_or_model') || 'anthropic/claude-sonnet-4-6';
+    if(k){ window.__MC_KEY__=k; window.__MC_PROVIDER__='openrouter'; window.__MC_OR_MODEL__=m; }
+    // Pre-select saved model
+    const sel = document.getElementById('ak-model-select');
+    if(sel && m) sel.value = m;
+  }
+  if(window.__MC_KEY__){
+    document.getElementById('apikey-overlay').classList.add('hidden');
+    document.getElementById('ak-bar').style.display = 'flex';
+    updateStatusBar();
+  }
+  document.getElementById('ak-btn').addEventListener('click', saveKey);
+  // Enter key on any input
+  ['ak-input-anthropic','ak-input-openrouter'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.addEventListener('keydown', e=>{ if(e.key==='Enter') saveKey(); });
+  });
+});
+</script>
+
+<!-- ═══ MAIN APP (Babel JSX) ═══ -->
+<script type="text/babel" data-presets="react">
+const { useState, useRef, useEffect, useCallback } = React;
+
+/* ═══ ROLE PERMISSIONS (driven by login gate) ═══ */
+const ROLE_PERM = {
+  viewer:{ key:"viewer", label:"檢視者", badge:"VIEWER", add:false, edit:false, ai:false, del:false },
+  editor:{ key:"editor", label:"編輯者", badge:"EDITOR", add:true,  edit:true,  ai:true,  del:false },
+  admin: { key:"admin",  label:"管理員", badge:"ADMIN",  add:true,  edit:true,  ai:true,  del:true  },
+};
+const RoleCtx = React.createContext(ROLE_PERM.viewer);
+const usePerm = () => React.useContext(RoleCtx);
+
+/* Provider config — read window state directly (avoid recursive window.getProviderConfig call) */
+function getProviderConfig(){
+  return {
+    provider: window.__MC_PROVIDER__ || "anthropic",
+    key: window.__MC_KEY__ || "",
+    orModel: window.__MC_OR_MODEL__ || "anthropic/claude-sonnet-4-6",
+  };
+}
+
+
+/* ═══════════════════════════════════════════
+   INTEL DESIGN SYSTEM
+   Ref: intel.com screenshots — deep navy hero,
+   Intel Blue #0068B5 CTA pill, #00AEEF accent,
+   clean white type, near-zero border-radius cards
+═══════════════════════════════════════════ */
+const C = {
+  /* backgrounds */
+  bg:        "#0A1628",   /* page bg — Intel darkest navy */
+  nav:       "#060E1A",   /* topbar  */
+  panel:     "#0D1E3A",   /* cards / panels */
+  panelAlt:  "#112040",   /* elevated card */
+  overlay:   "rgba(6,14,26,0.82)",
+
+  /* text */
+  ink:   "#FFFFFF",
+  ink2:  "#B8CCE8",
+  ink3:  "#6A8EBF",
+  ink4:  "#364F72",
+
+  /* Intel brand */
+  blue:  "#0068B5",   /* primary CTA */
+  blueH: "#0080D8",   /* hover */
+  acc:   "#00AEEF",   /* accent / links */
+  accL:  "rgba(0,174,239,0.12)",
+
+  /* status */
+  green: "#3DDC84",   greenL: "rgba(61,220,132,0.12)",
+  amber: "#F0A500",   amberL: "rgba(240,165,0,0.12)",
+  red:   "#FF6B6B",   redL:   "rgba(255,107,107,0.12)",
+
+  /* borders */
+  border:  "#152338",
+  borderB: "#1E3454",
+};
+
+/* Department accent colours (vivid on dark) */
+const DC = ["#00AEEF","#A78BFA","#3DDC84","#38BDF8","#F472B6",
+            "#FBBF24","#60A5FA","#F97316","#C084FC","#34D399"];
+
+const DEPTS = [
+  { id:"tr",    num:"01", icon:"🌏", name:"翻譯部",        tag:"台灣化翻譯",      cnt:2,
+    skills:[{n:"baoyu-translate",r:"譯者",desc:"四段式翻譯流程"},{n:"taiwan-traditional-chinese",r:"校對",desc:"460+ 術語稽核"}]},
+  { id:"co",    num:"02", icon:"✍️", name:"內容創作部",    tag:"寫作生產線",      cnt:21,
+    skills:[{n:"baoyu-url-to-markdown",r:"抓取",desc:"網頁→Markdown"},{n:"baoyu-youtube-transcript",r:"抓取",desc:"YouTube逐字稿"},{n:"baoyu-infographic",r:"視覺",desc:"21布局×22風格"},{n:"baoyu-xhs-images",r:"視覺",desc:"社群圖卡"},{n:"baoyu-format-markdown",r:"排版",desc:"格式化"},{n:"baoyu-post-to-x/wechat/weibo",r:"發佈",desc:"三平台同步"}]},
+  { id:"ds",    num:"03", icon:"🎨", name:"設計部",        tag:"UI 不平庸",       cnt:8,
+    skills:[{n:"frontend-design",r:"總監",desc:"BOLD美學方向",inst:true},{n:"ui-ux-pro-max",r:"設計師",desc:"161配色×57字體"},{n:"ckm-design/brand",r:"品牌",desc:"Logo 55風格"},{n:"ckm-design/design-system",r:"系統",desc:"完整設計系統"}]},
+  { id:"en",    num:"04", icon:"⚙️", name:"工程部",        tag:"TDD SDE SOP",     cnt:14,
+    skills:[{n:"brainstorming",r:"",desc:"構思發散"},{n:"writing-plans",r:"",desc:"計劃制定"},{n:"test-driven-development",r:"",desc:"TDD流程"},{n:"systematic-debugging",r:"",desc:"系統除錯"},{n:"verification-before-completion",r:"",desc:"完成驗證"},{n:"token-line-notify",r:"",desc:"API用量監控",inst:true},{n:"bilingual-live-caption",r:"",desc:"雙語字幕",inst:true}]},
+  { id:"ad",    num:"05", icon:"🗂️", name:"行政部",        tag:"工具管理調度",    cnt:5,
+    skills:[{n:"find-skills",r:"人資",desc:"全球skill搜尋"},{n:"skill-creator",r:"訓練",desc:"官方建skill工具"},{n:"gstack-workflow-assistant",r:"PM",desc:"AI工作流全套"}]},
+  { id:"proj",  num:"06", icon:"📋", name:"專案指揮部",    tag:"任務拆解追蹤",    cnt:1,
+    skills:[{n:"cto-staff",r:"總監",desc:"任務分析+資源規劃"},{n:"project-tracker",r:"追蹤",desc:"進度監控+停滯提醒"}]},
+  { id:"intel", num:"07", icon:"🔍", name:"資訊偵查部",    tag:"即時網路情報",    cnt:3,
+    skills:[{n:"web-intelligence",r:"情報",desc:"多源即時搜尋"},{n:"product-scout",r:"商品",desc:"價格規格評價"},{n:"spec-verifier",r:"查核",desc:"技術數據驗證"}]},
+  { id:"trend", num:"08", icon:"📡", name:"趨勢偵察部",    tag:"三個月滾動Index", cnt:1,
+    skills:[{n:"trend-radar",r:"分析師",desc:"GitHub/HF/Reddit/X趨勢"}]},
+  { id:"pm",    num:"09", icon:"🧠", name:"PM 技能部",     tag:"策略×執行×發現",  cnt:4,
+    skills:[{n:"pm-market-intelligence",r:"情報",desc:"競品+TAM+情緒"},{n:"pm-strategy",r:"策略",desc:"LeanCanvas+SWOT"},{n:"pm-discovery",r:"發現",desc:"功能排序+實驗"},{n:"pm-execution",r:"執行",desc:"PRD+OKR+roadmap"}]},
+];
+
+const TOKEN_MAX = {small:8000,medium:30000,large:120000};
+
+/* ═══ RESPONSIVE HOOK ═══ */
+function useBreakpoint(){
+  const [w,setW] = useState(typeof window!=="undefined"?window.innerWidth:1200);
+  useEffect(()=>{
+    const fn=()=>setW(window.innerWidth);
+    window.addEventListener("resize",fn);
+    return ()=>window.removeEventListener("resize",fn);
+  },[]);
+  return { isMobile:w<768, isTablet:w>=768&&w<1100, isDesktop:w>=1100, w };
+}
+
+/* ═══ API ═══ */
+/* ═══════════════════════════════════════════
+   UNIFIED AI CALL — Anthropic direct OR OpenRouter
+   Both providers normalised to same return type: string
+   OpenRouter = OpenAI-compatible chat/completions format
+   Note: web_search only works with Anthropic direct;
+         OpenRouter uses its own "web" plugin instead
+═══════════════════════════════════════════ */
+async function callClaude(sys, user, max=900, search=false){
+  const {provider, key, orModel} = getProviderConfig();
+  if(!key) throw new Error("未設定 API Key — 請重新整理頁面後輸入");
+
+  /* ── Anthropic direct ── */
+  if(provider === 'anthropic'){
+    const body = {
+      model: "claude-sonnet-4-6",
+      max_tokens: max,
+      system: sys,
+      messages: [{role:"user", content:user}]
+    };
+    if(search) body.tools = [{type:"web_search_20250305", name:"web_search"}];
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "x-api-key": key,
+        "anthropic-version":"2023-06-01",
+        "anthropic-dangerous-direct-browser-access":"true"
+      },
+      body: JSON.stringify(body)
+    });
+    const d = await r.json();
+    if(d.error) throw new Error(d.error.message || JSON.stringify(d.error));
+    return (d.content||[]).map(b=>b.type==="text"?b.text:"").join("").trim();
+  }
+
+  /* ── OpenRouter (OpenAI-compatible) ── */
+  const model = orModel || "anthropic/claude-sonnet-4-6";
+  const messages = [
+    {role:"system", content:sys},
+    {role:"user",   content:user}
+  ];
+  const body = {model, max_tokens:max, messages};
+  // OpenRouter web search plugin (replaces Anthropic web_search tool)
+  if(search) body.plugins = [{id:"web", max_results:5}];
+  const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "Authorization": `Bearer ${key}`,
+      "HTTP-Referer": "https://john117-mission-control.local",
+      "X-Title": "john117 Mission Control"
+    },
+    body: JSON.stringify(body)
+  });
+  const d = await r.json();
+  if(d.error) throw new Error(d.error.message || JSON.stringify(d.error));
+  return (d.choices||[]).map(c=>c.message?.content||"").join("").trim();
+}
+
+async function callJSON(sys, user, max=1100){
+  const raw = await callClaude(sys, user, max);
+  return JSON.parse(raw.replace(/^```json\s*/,"").replace(/^```\s*/,"").replace(/\s*```$/,"").trim());
+}
+
+/* ═══ ATOMS ═══ */
+function Spin({size=14,col=C.acc}){
+  return(
+    <><style>{`@keyframes _sp{to{transform:rotate(360deg)}}`}</style>
+    <div style={{width:size,height:size,border:`2px solid ${C.border}`,borderTopColor:col,borderRadius:"50%",animation:"_sp .7s linear infinite",flexShrink:0}}/></>
+  );
+}
+
+/* Intel-style progress ring */
+function Ring({pct,size=52,stroke=4,col=C.acc}){
+  const r=size/2-stroke-1, circ=2*Math.PI*r;
+  return(
+    <div style={{position:"relative",width:size,height:size,flexShrink:0}}>
+      <svg width={size} height={size} style={{transform:"rotate(-90deg)",position:"absolute",inset:0}}>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={C.border} strokeWidth={stroke}/>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={col} strokeWidth={stroke}
+          strokeDasharray={`${circ*pct/100} ${circ}`} strokeLinecap="round"
+          style={{transition:"stroke-dasharray .6s ease"}}/>
+      </svg>
+      <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",
+        fontSize:size>48?12:10,fontWeight:700,color:col,fontFamily:"monospace"}}>{pct}%</div>
+    </div>
+  );
+}
+
+/* Intel pill button */
+function Btn({children,onClick,variant="ghost",disabled=false,small=false,full=false}){
+  const v={
+    primary:{background:C.blue,color:"#fff",border:"none"},
+    secondary:{background:"transparent",color:C.ink2,border:`1px solid ${C.borderB}`},
+    ghost:{background:"transparent",color:C.ink3,border:"none"},
+    danger:{background:"transparent",color:C.red,border:`1px solid ${C.red}44`},
+  };
+  return(
+    <button disabled={disabled} onClick={onClick}
+      style={{...v[variant],
+        padding:small?"6px 14px":"9px 22px",
+        fontSize:small?11:13, fontWeight:500,
+        borderRadius:40,  /* Intel pill */
+        cursor:disabled?"not-allowed":"pointer",
+        fontFamily:"inherit",
+        display:"inline-flex",alignItems:"center",gap:6,
+        opacity:disabled?.55:1,
+        transition:"all .15s",
+        width:full?"100%":undefined,
+        justifyContent:full?"center":undefined,
+        whiteSpace:"nowrap",
+      }}>{children}</button>
+  );
+}
+
+/* Intel-style tag */
+function Tag({label,col=C.acc}){
+  return <span style={{fontSize:10,padding:"2px 8px",borderRadius:3,background:`${col}18`,color:col,fontFamily:"monospace",letterSpacing:".03em",whiteSpace:"nowrap"}}>{label}</span>;
+}
+
+function CopyBtn({text,small=true}){
+  const [ok,setOk]=useState(false);
+  return(
+    <button onClick={()=>{navigator.clipboard.writeText(text);setOk(true);setTimeout(()=>setOk(false),1500);}}
+      style={{padding:small?"3px 9px":"5px 14px",background:ok?C.green:C.blue,color:"#fff",border:"none",borderRadius:20,fontSize:11,cursor:"pointer",fontFamily:"inherit",fontWeight:500,flexShrink:0,transition:"background .2s"}}>
+      {ok?"✓ 已複製":"複製"}
+    </button>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   DEPT SLIDE PANEL  (right drawer)
+═══════════════════════════════════════════ */
+function DeptPanel({dept,deptIdx,projects,onClose,requestLock}){
+  const col=DC[deptIdx%DC.length];
+  const dp=projects.filter(p=>p.dept===dept.id);
+  const dt=dp.reduce((a,p)=>a+(p.tasks||[]).length,0);
+  const dd=dp.reduce((a,p)=>a+(p.tasks||[]).filter(t=>t.done).length,0);
+  const pct=dt?Math.round(dd/dt*100):null;
+  const {isMobile}=useBreakpoint();
+  const perm=usePerm();
+  const [q,setQ]=useState("");
+  const [loading,setLoading]=useState(false);
+  const [out,setOut]=useState("");
+
+  const ask=async()=>{
+    if(!q.trim()||requestLock.current||!perm.ai) return;
+    setLoading(true); requestLock.current=true;
+    try{
+      const t=await callClaude(`你是 john117 指揮中心的 ${dept.name} 專家。可用的 skill：${dept.skills.map(s=>s.n).join("、")}。用繁體中文，具體實用。`,q,500);
+      setOut(t);
+    }catch(e){setOut(`錯誤：${e.message}`);}
+    finally{setLoading(false);requestLock.current=false;}
+  };
+
+  const W=isMobile?"100%":"480px";
+
+  return(
+    <div style={{position:"fixed",inset:0,zIndex:300,display:"flex"}} onClick={onClose}>
+      {!isMobile&&<div style={{flex:1,background:C.overlay,backdropFilter:"blur(3px)"}}/>}
+      {isMobile&&<div style={{position:"absolute",inset:0,background:C.overlay,backdropFilter:"blur(3px)"}}/>}
+
+      <div onClick={e=>e.stopPropagation()}
+        style={{width:W,maxWidth:"100vw",background:C.panel,borderLeft:isMobile?"none":`1px solid ${C.borderB}`,
+          display:"flex",flexDirection:"column",overflowY:"auto",
+          position:isMobile?"absolute":"relative",
+          inset:isMobile?0:undefined,
+          zIndex:isMobile?1:undefined,
+        }}>
+
+        {/* Panel header */}
+        <div style={{padding:"20px 22px 18px",borderBottom:`1px solid ${C.border}`,
+          background:`linear-gradient(160deg,${col}14 0%,transparent 60%)`,flexShrink:0}}>
+          <div style={{display:"flex",alignItems:"flex-start",gap:14,marginBottom:pct!==null?14:0}}>
+            <div style={{width:48,height:48,borderRadius:10,background:`${col}20`,display:"flex",alignItems:"center",
+              justifyContent:"center",fontSize:24,flexShrink:0,border:`1px solid ${col}40`}}>{dept.icon}</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                <h2 style={{fontSize:20,fontWeight:700,color:C.ink,margin:0}}>{dept.name}</h2>
+                <Tag label={dept.num} col={col}/>
+              </div>
+              <p style={{fontSize:13,color:C.ink3,margin:"3px 0 0"}}>{dept.tag} · {dept.cnt} 人</p>
+            </div>
+            <button onClick={onClose}
+              style={{background:"transparent",border:"none",color:C.ink3,fontSize:22,cursor:"pointer",
+                padding:"4px 8px",lineHeight:1,flexShrink:0}}>×</button>
+          </div>
+          {pct!==null&&(
+            <div>
+              <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:C.ink3,marginBottom:5}}>
+                <span>部門進度</span>
+                <span style={{fontFamily:"monospace",color:col}}>{dd}/{dt} · {pct}%</span>
+              </div>
+              <div style={{height:3,background:C.border,borderRadius:2,overflow:"hidden"}}>
+                <div style={{height:"100%",width:`${pct}%`,background:col,borderRadius:2,transition:"width .6s"}}/>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div style={{flex:1,padding:"18px 22px",display:"flex",flexDirection:"column",gap:18,overflowY:"auto"}}>
+          {/* Skills grid */}
+          <section>
+            <div style={{fontSize:11,letterSpacing:".08em",textTransform:"uppercase",color:C.ink4,
+              fontFamily:"monospace",marginBottom:10}}>Skills · {dept.skills.length}</div>
+            <div style={{display:"flex",flexDirection:"column",gap:7}}>
+              {dept.skills.map(sk=>(
+                <div key={sk.n} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",
+                  borderRadius:6,background:sk.inst?C.greenL:C.panelAlt,
+                  border:`1px solid ${sk.inst?"rgba(61,220,132,0.25)":C.border}`}}>
+                  {sk.inst&&<span style={{fontSize:11,color:C.green,flexShrink:0}}>✓</span>}
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:12,fontFamily:"monospace",color:sk.inst?C.green:C.ink2,fontWeight:500,
+                      overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{sk.n}</div>
+                    <div style={{fontSize:11,color:C.ink4,marginTop:1}}>{sk.desc}</div>
+                  </div>
+                  {sk.r&&<Tag label={sk.r} col={col}/>}
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Projects in dept */}
+          {dp.length>0&&(
+            <section>
+              <div style={{fontSize:11,letterSpacing:".08em",textTransform:"uppercase",color:C.ink4,
+                fontFamily:"monospace",marginBottom:10}}>進行中專案 · {dp.length}</div>
+              {dp.map(p=>{
+                const tot=(p.tasks||[]).length,dn=(p.tasks||[]).filter(t=>t.done).length;
+                const pc=tot?Math.round(dn/tot*100):0;
+                return(
+                  <div key={p.id} style={{padding:"12px",borderRadius:6,background:C.panelAlt,
+                    border:`1px solid ${C.border}`,marginBottom:7}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:7}}>
+                      <span style={{fontSize:13,fontWeight:500,color:C.ink}}>{p.name}</span>
+                      <span style={{fontSize:11,fontFamily:"monospace",color:col}}>{pc}%</span>
+                    </div>
+                    <div style={{height:2,background:C.border,borderRadius:1,overflow:"hidden",marginBottom:8}}>
+                      <div style={{height:"100%",width:`${pc}%`,background:col,borderRadius:1}}/>
+                    </div>
+                    {(p.tasks||[]).slice(0,3).map(t=>(
+                      <div key={t.id} style={{fontSize:11,color:t.done?C.ink4:C.ink2,
+                        textDecoration:t.done?"line-through":"none",padding:"2px 0",
+                        display:"flex",gap:6,alignItems:"center"}}>
+                        <span style={{color:t.done?C.green:C.ink4,flexShrink:0}}>{t.done?"✓":"○"}</span>
+                        {t.name}
+                      </div>
+                    ))}
+                    {p.tasks.length>3&&<div style={{fontSize:10,color:C.ink4,marginTop:4}}>+{p.tasks.length-3} 更多</div>}
+                  </div>
+                );
+              })}
+            </section>
+          )}
+
+          {/* Ask dept */}
+          <section style={{background:C.bg,borderRadius:6,padding:14,border:`1px solid ${C.border}`}}>
+            <div style={{fontSize:11,letterSpacing:".08em",textTransform:"uppercase",color:C.ink4,
+              fontFamily:"monospace",marginBottom:9}}>詢問 {dept.name}</div>
+            {perm.ai?(<>
+            <div style={{display:"flex",gap:7}}>
+              <input value={q} onChange={e=>setQ(e.target.value)} onKeyDown={e=>e.key==="Enter"&&!loading&&ask()}
+                placeholder={`問 ${dept.name} 任何問題…`}
+                style={{flex:1,padding:"8px 12px",background:C.panel,border:`1px solid ${C.border}`,
+                  borderRadius:6,color:C.ink,fontSize:12,outline:"none",fontFamily:"inherit"}}/>
+              <Btn small onClick={ask} disabled={loading||!q.trim()} variant="primary">
+                {loading?<Spin size={12} col="#fff"/>:"→"}
+              </Btn>
+            </div>
+            {out&&<div style={{marginTop:10,fontSize:12,color:C.ink2,lineHeight:1.7,
+              whiteSpace:"pre-wrap",maxHeight:200,overflowY:"auto",borderTop:`1px solid ${C.border}`,paddingTop:10}}>{out}</div>}
+            </>):(
+              <div style={{fontSize:12,color:C.ink3,lineHeight:1.7}}>🔒 唯讀模式 · 詢問功能需編輯者以上權限</div>
+            )}
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   TASK INPUT DRAWER  (bottom drawer on mobile / right panel on desktop)
+═══════════════════════════════════════════ */
+function TaskDrawer({projects,setProjects,requestLock,onClose,isMobile}){
+  const [desc,setDesc]=useState("");
+  const [cx,setCx]=useState("medium");
+  const [loading,setLoading]=useState(false);
+  const [draft,setDraft]=useState(null);
+  const [err,setErr]=useState("");
+
+  const analyze=async()=>{
+    if(!desc.trim()){setErr("請描述任務");return;}
+    if(requestLock.current){setErr("請等上一個請求完成");return;}
+    setErr(""); setDraft(null); setLoading(true); requestLock.current=true;
+    const sys=`你是 john117 指揮中心技術參謀總監。分析任務回傳純 JSON（不含markdown）：
+{"project_name":"(12字內)","summary":"一句話","dept_id":"${DEPTS.map(d=>d.id).join("/")}中的一個","dept_name":"部門名稱","tasks":[{"id":"T1","name":"","description":"","token_est":0,"priority":"high|medium|low","tip":""}],"total_token_est":0,"resume_commands":["繼續指令"],"cto_note":"一句提醒"}
+複雜度:${cx} Token上限:${TOKEN_MAX[cx].toLocaleString()}`;
+    try{
+      const data=await callJSON(sys,`任務：${desc}`,1200);
+      setDraft(data);
+    }catch(e){setErr(`分析失敗：${e.message}`);}
+    finally{setLoading(false);requestLock.current=false;}
+  };
+
+  const save=()=>{
+    if(!draft) return;
+    const p={id:"P"+Date.now(),name:draft.project_name,summary:draft.summary,
+      dept:draft.dept_id,deptName:draft.dept_name,
+      tasks:(draft.tasks||[]).map(t=>({...t,done:false})),
+      totalTokens:draft.total_token_est||0,
+      resumeCommands:draft.resume_commands||[],
+      complexity:cx,created:Date.now(),lastActive:Date.now()};
+    setProjects(ps=>[p,...ps]);
+    setDraft(null); setDesc(""); if(onClose) onClose();
+  };
+
+  const pc={high:C.red,medium:C.amber,low:C.green};
+  const pl={high:"高",medium:"中",low:"低"};
+
+  const inner=(
+    <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
+      {/* Header */}
+      <div style={{padding:"18px 22px 16px",borderBottom:`1px solid ${C.border}`,flexShrink:0,
+        display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div>
+          <h3 style={{fontSize:16,fontWeight:700,color:C.ink,margin:0}}>新增任務</h3>
+          <p style={{fontSize:12,color:C.ink3,margin:"2px 0 0"}}>描述工作，AI 自動分析指派部門</p>
+        </div>
+        {onClose&&<button onClick={onClose} style={{background:"transparent",border:"none",color:C.ink3,fontSize:22,cursor:"pointer",padding:"4px 8px"}}>×</button>}
+      </div>
+
+      <div style={{flex:1,overflowY:"auto",padding:"16px 22px"}}>
+        {/* textarea */}
+        <textarea value={desc} onChange={e=>setDesc(e.target.value)}
+          placeholder={"說明要做什麼…\n\n例：把英文技術文章翻成台灣繁體\n或：建立 React dashboard + TDD + code review"}
+          style={{width:"100%",minHeight:88,padding:"10px 13px",background:C.bg,
+            border:`1px solid ${C.border}`,borderRadius:6,color:C.ink,fontSize:13,
+            outline:"none",fontFamily:"inherit",resize:"vertical",lineHeight:1.65}}/>
+
+        <div style={{display:"flex",gap:8,marginTop:10,alignItems:"center",flexWrap:"wrap"}}>
+          <select value={cx} onChange={e=>setCx(e.target.value)}
+            style={{flex:1,minWidth:120,padding:"8px 11px",background:C.bg,border:`1px solid ${C.border}`,
+              borderRadius:6,color:C.ink,fontSize:12,outline:"none",fontFamily:"inherit"}}>
+            <option value="small">小型 (1-3h)</option>
+            <option value="medium">中型 (半天-1天)</option>
+            <option value="large">大型 (多天)</option>
+          </select>
+          <Btn onClick={analyze} disabled={loading||!desc.trim()} variant="primary">
+            {loading?<><Spin size={13} col="#fff"/>分析中…</>:"分析任務 →"}
+          </Btn>
+        </div>
+        {err&&<p style={{fontSize:12,color:C.red,marginTop:7,margin:"7px 0 0"}}>{err}</p>}
+
+        {/* Draft */}
+        {draft&&(
+          <div style={{marginTop:14,background:C.bg,border:`1px solid ${C.acc}44`,borderRadius:8,overflow:"hidden"}}>
+            <div style={{padding:"12px 14px",borderBottom:`1px solid ${C.border}`,
+              background:`linear-gradient(90deg,${C.blue}18,transparent)`}}>
+              <div style={{fontSize:14,fontWeight:700,color:C.ink}}>{draft.project_name}</div>
+              <div style={{fontSize:12,color:C.ink3,marginTop:3}}>{draft.summary}</div>
+              <div style={{display:"flex",alignItems:"center",gap:7,marginTop:6}}>
+                <Tag label={draft.dept_name||"—"} col={C.acc}/>
+                <span style={{fontSize:11,color:C.ink3,fontFamily:"monospace"}}>
+                  ~{(draft.total_token_est||0).toLocaleString()} tok
+                </span>
+              </div>
+            </div>
+
+            <div style={{padding:"10px 14px"}}>
+              {(draft.tasks||[]).map((t,i)=>(
+                <div key={t.id} style={{display:"flex",gap:9,marginBottom:8,alignItems:"flex-start"}}>
+                  <span style={{fontSize:11,fontFamily:"monospace",color:pc[t.priority]||C.ink3,
+                    minWidth:18,paddingTop:1,fontWeight:700}}>T{i+1}</span>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:12,color:C.ink2,fontWeight:500}}>{t.name}</div>
+                    <div style={{fontSize:11,color:C.ink4,marginTop:1,lineHeight:1.4}}>{t.description}</div>
+                    {t.tip&&<div style={{fontSize:10,color:C.acc,marginTop:3}}>💡 {t.tip}</div>}
+                  </div>
+                  <Tag label={pl[t.priority]} col={pc[t.priority]}/>
+                </div>
+              ))}
+            </div>
+
+            {draft.cto_note&&(
+              <div style={{padding:"9px 14px",borderTop:`1px solid ${C.border}`,
+                fontSize:12,color:C.amber,display:"flex",gap:7}}>
+                <span>💬</span><span>{draft.cto_note}</span>
+              </div>
+            )}
+
+            <div style={{padding:"10px 14px",borderTop:`1px solid ${C.border}`,display:"flex",gap:8}}>
+              <Btn onClick={save} variant="primary" small>＋ 加入追蹤</Btn>
+              <Btn onClick={()=>{setDraft(null);setDesc("");}} variant="ghost" small>清除</Btn>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  if(!isMobile) return <div style={{width:"100%",height:"100%",display:"flex",flexDirection:"column"}}>{inner}</div>;
+
+  /* Mobile: bottom sheet */
+  return(
+    <div style={{position:"fixed",inset:0,zIndex:300}} onClick={onClose}>
+      <div style={{position:"absolute",inset:0,background:C.overlay,backdropFilter:"blur(3px)"}}/>
+      <div onClick={e=>e.stopPropagation()}
+        style={{position:"absolute",bottom:0,left:0,right:0,background:C.panel,
+          borderTop:`1px solid ${C.borderB}`,borderRadius:"16px 16px 0 0",
+          maxHeight:"85vh",display:"flex",flexDirection:"column",zIndex:1}}>
+        <div style={{width:36,height:4,borderRadius:2,background:C.borderB,margin:"10px auto 0"}}/>
+        {inner}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   ASSISTANT SIDE PANEL
+═══════════════════════════════════════════ */
+function AssistantPanel({projects,requestLock}){
+  const [sugs,setSugs]=useState([]);
+  const [loading,setLoading]=useState(false);
+  const [running,setRunning]=useState(null);
+  const [out,setOut]=useState(null);
+  const [log,setLog]=useState([]);
+  const prevKey=useRef("");
+  const perm=usePerm();
+
+  const refresh=useCallback(async()=>{
+    const key=`${projects.length}-${projects.reduce((a,p)=>a+(p.tasks||[]).filter(t=>t.done).length,0)}`;
+    if(key===prevKey.current||requestLock.current) return;
+    prevKey.current=key; setLoading(true);
+    const ctx=projects.slice(0,3).map(p=>`「${p.name}」${Math.round((p.tasks||[]).filter(t=>t.done).length/Math.max(1,(p.tasks||[]).length)*100)}%`).join("、")||"無進行中專案";
+    try{
+      const arr=await callJSON(
+        `你是 AI 工作助手，根據當前狀態給 5 個最有價值的下一步建議。純 JSON 陣列（不含markdown）：[{"id":"A1","icon":"🔍","label":"8字內","desc":"18字內說明","type":"analyze|search|review|scout"}]`,
+        `進行中專案：${ctx}`,500);
+      setSugs(Array.isArray(arr)?arr.slice(0,5):[]);
+    }catch{
+      setSugs([
+        {id:"A1",icon:"📋",label:"分析新任務",desc:"讓參謀總監拆解任務",type:"analyze"},
+        {id:"A2",icon:"📡",label:"掃描近期趨勢",desc:"三個月 AI 生態趨勢",type:"scout"},
+        {id:"A3",icon:"⏱️",label:"估算剩餘工時",desc:"評估待完成任務工時",type:"review"},
+        {id:"A4",icon:"🔄",label:"Review 現有資料",desc:"檢查資料是否需更新",type:"review"},
+        {id:"A5",icon:"✅",label:"進度總覽摘要",desc:"所有專案完成狀態",type:"review"},
+      ]);
+    }
+    setLoading(false);
+  },[projects.length]);
+
+  useEffect(()=>{ if(perm.ai) refresh(); },[projects.length]);
+
+  const execute=async(sg)=>{
+    if(requestLock.current||!perm.ai) return;
+    setRunning(sg.id); setOut(null); requestLock.current=true;
+    const ts=new Date().toLocaleTimeString();
+    setLog(l=>[{id:Date.now(),t:`▶ ${sg.label}`,ts},...l.slice(0,6)]);
+    const ctx=projects.map(p=>`「${p.name}」：${(p.tasks||[]).map(t=>`${t.name}(${t.done?"✓":"待"})`).join("、")}`).join("\n")||"無";
+    try{
+      const text=await callClaude(`你是 AI 工作助手，直接執行並給具體回應。繁體中文。當前專案：\n${ctx}`,sg.desc,600,sg.type==="scout");
+      setOut({label:sg.label,text,icon:sg.icon});
+      setLog(l=>[{id:Date.now(),t:`✓ ${sg.label}`,ts:new Date().toLocaleTimeString()},...l.slice(0,6)]);
+    }catch(e){
+      setOut({label:"錯誤",text:`失敗：${e.message}`,icon:"⚠️"});
+    } finally {
+      setRunning(null); requestLock.current=false;
+    }
+  };
+
+  return(
+    <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
+      <div style={{padding:"14px 16px 12px",borderBottom:`1px solid ${C.border}`,flexShrink:0,
+        display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div>
+          <div style={{fontSize:13,fontWeight:600,color:C.ink}}>AI 小助手</div>
+          <div style={{fontSize:10,color:C.ink4}}>點選建議直接派工執行</div>
+        </div>
+        <button onClick={refresh} disabled={loading}
+          style={{background:"transparent",border:`1px solid ${C.border}`,color:C.ink3,fontSize:12,
+            borderRadius:6,padding:"4px 9px",cursor:loading?"default":"pointer",fontFamily:"inherit"}}>
+          {loading?<Spin size={11}/>:"↻"}
+        </button>
+      </div>
+
+      <div style={{flex:1,overflowY:"auto",padding:"12px 14px",display:"flex",flexDirection:"column",gap:0}}>
+        {!perm.ai&&(
+          <div style={{padding:"16px 14px",background:C.panelAlt,border:`1px solid ${C.border}`,
+            borderRadius:8,fontSize:12,color:C.ink3,lineHeight:1.9,textAlign:"center"}}>
+            🔒 唯讀模式<br/>AI 派工與助手功能需<b style={{color:C.ink2}}>編輯者</b>以上權限
+          </div>
+        )}
+        {perm.ai&&<div style={{fontSize:10,letterSpacing:".07em",textTransform:"uppercase",color:C.ink4,
+          fontFamily:"monospace",marginBottom:9}}>建議動作</div>}
+
+        {loading&&!sugs.length&&(
+          <div style={{display:"flex",gap:8,color:C.ink3,fontSize:12,padding:"10px 0"}}>
+            <Spin size={13}/>產生建議中…
+          </div>
+        )}
+
+        {sugs.map(sg=>(
+          <button key={sg.id} onClick={()=>execute(sg)} disabled={!!running}
+            style={{width:"100%",textAlign:"left",padding:"9px 11px",borderRadius:7,
+              border:`1px solid ${running===sg.id?C.acc+"66":C.border}`,
+              background:running===sg.id?C.accL:C.panelAlt,
+              marginBottom:6,cursor:running?"not-allowed":"pointer",
+              fontFamily:"inherit",display:"flex",gap:9,alignItems:"flex-start",
+              opacity:running&&running!==sg.id?.4:1,transition:"opacity .15s"}}>
+            <span style={{fontSize:16,flexShrink:0,marginTop:1}}>{sg.icon}</span>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:12,fontWeight:500,color:C.ink,lineHeight:1.3}}>{sg.label}</div>
+              <div style={{fontSize:10,color:C.ink3,marginTop:2,lineHeight:1.4}}>{sg.desc}</div>
+            </div>
+            {running===sg.id&&<Spin size={13} col={C.acc}/>}
+          </button>
+        ))}
+
+        {out&&(
+          <div style={{marginTop:6,background:C.bg,borderRadius:7,border:`1px solid ${C.border}`,overflow:"hidden"}}>
+            <div style={{padding:"9px 11px",borderBottom:`1px solid ${C.border}`,
+              display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span style={{fontSize:12,fontWeight:500,color:C.ink}}>{out.icon} {out.label}</span>
+              <button onClick={()=>setOut(null)}
+                style={{background:"transparent",border:"none",color:C.ink3,cursor:"pointer",fontSize:15,fontFamily:"inherit"}}>×</button>
+            </div>
+            <div style={{padding:"9px 11px",fontSize:12,color:C.ink2,lineHeight:1.7,
+              maxHeight:160,overflowY:"auto",whiteSpace:"pre-wrap"}}>{out.text}</div>
+          </div>
+        )}
+      </div>
+
+      {log.length>0&&(
+        <div style={{padding:"9px 14px",borderTop:`1px solid ${C.border}`,flexShrink:0}}>
+          <div style={{fontSize:9,letterSpacing:".07em",textTransform:"uppercase",color:C.ink4,
+            fontFamily:"monospace",marginBottom:5}}>執行記錄</div>
+          {log.slice(0,4).map(l=>(
+            <div key={l.id} style={{display:"flex",justifyContent:"space-between",
+              fontSize:10,color:C.ink3,padding:"1px 0",fontFamily:"monospace"}}>
+              <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1}}>{l.t}</span>
+              <span style={{flexShrink:0,marginLeft:8,color:C.ink4}}>{l.ts}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   MAIN DASHBOARD CONTENT
+═══════════════════════════════════════════ */
+function DashboardContent({projects,setProjects,requestLock,onSelectDept,isMobile}){
+  const now=Date.now();
+  const totalT=projects.reduce((a,p)=>a+(p.tasks||[]).length,0);
+  const doneT=projects.reduce((a,p)=>a+(p.tasks||[]).filter(t=>t.done).length,0);
+  const gPct=totalT?Math.round(doneT/totalT*100):0;
+  const totalTok=projects.reduce((a,p)=>a+(p.totalTokens||0),0);
+  const stalled=projects.filter(p=>!(p.tasks||[]).every(t=>t.done)&&(now-(p.lastActive||p.created))>86400000);
+  const [openP,setOpenP]=useState(null);
+  const perm=usePerm();
+
+  const toggleTask=(pid,tid)=>{
+    if(!perm.edit) return;
+    setProjects(ps=>ps.map(p=>p.id!==pid?p:{...p,lastActive:now,tasks:p.tasks.map(t=>t.id!==tid?t:{...t,done:!t.done})}));
+  };
+
+  return(
+    <div style={{flex:1,overflowY:"auto",padding:isMobile?"14px 14px 80px":"20px 24px 60px"}}>
+
+      {/* ── INTEL-STYLE HERO STATS ── */}
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr 1fr":"repeat(4,1fr)",gap:10,marginBottom:18}}>
+        {[
+          {label:"全域完成率",    val:`${gPct}%`,   sub:`${doneT}/${totalT} 任務`, col:gPct===100?C.green:C.acc, ring:true, pct:gPct},
+          {label:"進行中專案",   val:projects.length, sub:`${stalled.length} 個停滯`,col:stalled.length?C.amber:C.green},
+          {label:"Token 消耗",   val:totalTok>999?`${(totalTok/1000).toFixed(1)}K`:totalTok||"—", sub:"累計預估", col:C.acc},
+          {label:"部門 / 員工",  val:`${DEPTS.length} / ${DEPTS.reduce((a,d)=>a+d.cnt,0)}`, sub:"七大職能", col:C.ink3},
+        ].map(item=>(
+          <div key={item.label}
+            style={{background:C.panel,border:`1px solid ${C.border}`,borderRadius:8,padding:"14px 16px",
+              display:"flex",alignItems:"center",gap:12}}>
+            {item.ring&&<Ring pct={item.pct} size={isMobile?44:52} col={item.col}/>}
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:10,color:C.ink3,letterSpacing:".05em",textTransform:"uppercase",fontFamily:"monospace"}}>{item.label}</div>
+              <div style={{fontSize:isMobile?18:22,fontWeight:700,color:item.col,fontFamily:"monospace",marginTop:3,lineHeight:1.1}}>{item.val}</div>
+              <div style={{fontSize:10,color:C.ink4,marginTop:3}}>{item.sub}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── STALLED ALERTS ── */}
+      {stalled.map(p=>(
+        <div key={p.id} style={{background:C.amberL,border:`1px solid rgba(240,165,0,.3)`,
+          borderRadius:8,padding:"12px 16px",marginBottom:12,display:"flex",gap:11}}>
+          <span style={{fontSize:18,flexShrink:0}}>⏰</span>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:13,color:C.amber,fontWeight:600}}>「{p.name}」已停滯 24 小時以上</div>
+            <div style={{fontSize:11,color:C.amber,opacity:.8,marginTop:2}}>
+              {(p.tasks||[]).filter(t=>!t.done).length} 個任務待完成 · {p.deptName||"—"}
+            </div>
+            {(p.resumeCommands||[])[0]&&(
+              <div style={{marginTop:9,background:"#060E1A",borderRadius:6,padding:"9px 12px",
+                display:"flex",alignItems:"flex-start",gap:8}}>
+                <div style={{fontFamily:"monospace",fontSize:11,color:"#B8CCE8",lineHeight:1.7,flex:1,
+                  whiteSpace:"pre-wrap",wordBreak:"break-all"}}>{(p.resumeCommands||[])[0]}</div>
+                <CopyBtn text={(p.resumeCommands||[])[0]}/>
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+
+      {/* ── DEPARTMENT GRID ── */}
+      <div style={{marginBottom:20}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+          <h2 style={{fontSize:isMobile?14:16,fontWeight:700,color:C.ink,margin:0}}>部門總覽</h2>
+          <span style={{fontSize:11,color:C.ink3}}>點擊查看詳情 →</span>
+        </div>
+        <div style={{display:"grid",
+          gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(auto-fill,minmax(188px,1fr))",gap:9}}>
+          {DEPTS.map((d,i)=>{
+            const col=DC[i%DC.length];
+            const dp=projects.filter(p=>p.dept===d.id);
+            const dt=dp.reduce((a,p)=>a+(p.tasks||[]).length,0);
+            const dd=dp.reduce((a,p)=>a+(p.tasks||[]).filter(t=>t.done).length,0);
+            const pct=dt?Math.round(dd/dt*100):null;
+            return(
+              <button key={d.id} onClick={()=>onSelectDept(d,i)}
+                style={{textAlign:"left",background:C.panel,border:`1px solid ${C.border}`,
+                  borderRadius:8,padding:isMobile?"11px 12px":"13px 15px",
+                  cursor:"pointer",fontFamily:"inherit",
+                  transition:"border-color .2s,background .2s",
+                  position:"relative",overflow:"hidden"}}>
+                {/* top accent bar */}
+                <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:col}}/>
+                <div style={{display:"flex",alignItems:"flex-start",gap:8,marginBottom:8}}>
+                  <span style={{fontSize:isMobile?18:20}}>{d.icon}</span>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:isMobile?12:13,fontWeight:700,color:C.ink,lineHeight:1.25}}>{d.name}</div>
+                    <div style={{fontSize:10,color:C.ink4,marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{d.tag}</div>
+                  </div>
+                </div>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",fontSize:10}}>
+                  <span style={{color:C.ink4}}>{d.cnt}人 · {d.skills.length}skill</span>
+                  {pct!==null&&<span style={{color:col,fontFamily:"monospace",fontWeight:700}}>{pct}%</span>}
+                </div>
+                {pct!==null&&(
+                  <div style={{height:2,background:C.border,borderRadius:1,overflow:"hidden",marginTop:6}}>
+                    <div style={{height:"100%",width:`${pct}%`,background:col,borderRadius:1,transition:"width .5s"}}/>
+                  </div>
+                )}
+                {dp.length>0&&<div style={{marginTop:5,fontSize:10,color:C.acc}}>{dp.length} 個專案</div>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── PROJECTS ── */}
+      <div>
+        <h2 style={{fontSize:isMobile?14:16,fontWeight:700,color:C.ink,margin:"0 0 12px"}}>
+          專案列表 {projects.length>0&&<span style={{fontSize:12,fontWeight:400,color:C.ink3}}>· {projects.length} 個</span>}
+        </h2>
+
+        {!projects.length&&(
+          <div style={{textAlign:"center",padding:"32px 20px",color:C.ink3,
+            background:C.panel,borderRadius:8,border:`1px solid ${C.border}`}}>
+            <div style={{fontSize:32,marginBottom:10}}>📋</div>
+            <div style={{fontSize:14,fontWeight:500,marginBottom:4}}>尚無進行中專案</div>
+            <div style={{fontSize:12,color:C.ink4}}>{isMobile?"點下方「＋」輸入任務需求":"在右側輸入任務，AI 自動分析指派"}</div>
+          </div>
+        )}
+
+        {projects.map(p=>{
+          const tasks=p.tasks||[], done=tasks.filter(t=>t.done).length;
+          const pct=tasks.length?Math.round(done/tasks.length*100):0;
+          const days=Math.floor((now-(p.lastActive||p.created))/86400000);
+          const isOpen=openP===p.id;
+          const di=DEPTS.findIndex(d=>d.id===p.dept);
+          const dc=di>=0?DC[di%DC.length]:C.acc;
+          return(
+            <div key={p.id} style={{background:C.panel,border:`1px solid ${C.border}`,
+              borderRadius:8,marginBottom:9,overflow:"hidden"}}>
+              {/* Project row */}
+              <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px 16px",cursor:"pointer"}}
+                onClick={()=>setOpenP(isOpen?null:p.id)}>
+                <span style={{fontSize:18,flexShrink:0}}>{DEPTS.find(d=>d.id===p.dept)?.icon||"📋"}</span>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap",marginBottom:5}}>
+                    <span style={{fontSize:13,fontWeight:600,color:C.ink}}>{p.name}</span>
+                    {p.deptName&&<Tag label={p.deptName} col={dc}/>}
+                    {pct===100&&<Tag label="✓ 完成" col={C.green}/>}
+                    {days>0&&pct<100&&<Tag label="⏰停滯" col={C.amber}/>}
+                  </div>
+                  <div style={{height:3,background:C.border,borderRadius:2,overflow:"hidden"}}>
+                    <div style={{height:"100%",width:`${pct}%`,background:pct===100?C.green:dc,
+                      borderRadius:2,transition:"width .6s"}}/>
+                  </div>
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:C.ink4,marginTop:4}}>
+                    <span>{done}/{tasks.length} 完成</span>
+                    <span>{days===0?"今天更新":days===1?"昨天":days+"天前"} · {(p.totalTokens||0).toLocaleString()} tok</span>
+                  </div>
+                </div>
+                <span style={{color:C.ink3,fontSize:16,transition:"transform .2s",
+                  transform:isOpen?"rotate(180deg)":"none",flexShrink:0}}>▾</span>
+              </div>
+
+              {/* Expanded */}
+              {isOpen&&(
+                <div style={{borderTop:`1px solid ${C.border}`,padding:"12px 16px"}}>
+                  {p.summary&&<p style={{fontSize:12,color:C.ink2,marginBottom:12,lineHeight:1.6}}>{p.summary}</p>}
+                  {tasks.map(t=>(
+                    <div key={t.id} style={{display:"flex",gap:9,padding:"8px 10px",borderRadius:6,
+                      background:t.done?"transparent":C.panelAlt,border:`1px solid ${C.border}`,
+                      marginBottom:5,opacity:t.done?.5:1}}>
+                      <input type="checkbox" checked={t.done} disabled={!perm.edit} onChange={()=>toggleTask(p.id,t.id)}
+                        style={{marginTop:2,cursor:perm.edit?"pointer":"not-allowed",accentColor:C.green,flexShrink:0,opacity:perm.edit?1:.5}}/>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:12,fontWeight:500,
+                          textDecoration:t.done?"line-through":"none",
+                          color:t.done?C.ink4:C.ink}}>{t.name}</div>
+                        <div style={{fontSize:11,color:C.ink4,marginTop:1,lineHeight:1.4}}>{t.description}</div>
+                        {t.tip&&<div style={{fontSize:10,color:C.acc,marginTop:3}}>💡 {t.tip}</div>}
+                      </div>
+                      <span style={{fontSize:10,color:C.ink4,fontFamily:"monospace",flexShrink:0,marginTop:1}}>
+                        ~{(t.token_est||0).toLocaleString()}
+                      </span>
+                    </div>
+                  ))}
+                  {(p.resumeCommands||[]).slice(0,1).map((cmd,i)=>(
+                    <div key={i} style={{marginTop:10,background:"#060E1A",borderRadius:6,padding:"10px 12px",
+                      display:"flex",alignItems:"flex-start",gap:8}}>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:10,color:C.ink4,fontFamily:"monospace",marginBottom:4}}>繼續執行指令</div>
+                        <div style={{fontFamily:"monospace",fontSize:11,color:"#B8CCE8",lineHeight:1.7,
+                          whiteSpace:"pre-wrap",wordBreak:"break-all"}}>{cmd}</div>
+                      </div>
+                      <CopyBtn text={cmd}/>
+                    </div>
+                  ))}
+                  {perm.del&&(
+                  <div style={{marginTop:10}}>
+                    <Btn small variant="danger" onClick={()=>{if(window.confirm("確定刪除？"))setProjects(ps=>ps.filter(pp=>pp.id!==p.id));}}>刪除</Btn>
+                  </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+
+/* ═══════════════════════════════════════════
+   IDLE ASSISTANT  — pops up after 30s inactivity
+   Phases:
+     loading  → fetching AI tips
+     ready    → show tips + ask trend compare prompt
+     picking  → user selecting a project to compare
+     trending → searching market trends (web search)
+     compared → showing comparison result
+     chat     → free-form Q&A
+═══════════════════════════════════════════ */
+function IdleAssistant({projects,requestLock,onDismiss}){
+  const [phase,setPhase]=useState("loading");
+  const [tips,setTips]=useState([]);
+  const [q,setQ]=useState("");
+  const [chatLoading,setChatLoading]=useState(false);
+  const [reply,setReply]=useState("");
+  const [trendLoading,setTrendLoading]=useState(false);
+  const [trendResult,setTrendResult]=useState(null);
+  const [selectedProj,setSelectedProj]=useState(null);
+
+  /* ── On mount: fetch contextual tips ── */
+  useEffect(()=>{
+    (async()=>{
+      const totalT=projects.reduce((a,p)=>a+(p.tasks||[]).length,0);
+      const doneT=projects.reduce((a,p)=>a+(p.tasks||[]).filter(t=>t.done).length,0);
+      const stalled=projects.filter(p=>!(p.tasks||[]).every(t=>t.done)&&(Date.now()-(p.lastActive||p.created))>86400000);
+      const ctx=`進行中專案：${projects.length}個，完成率：${totalT?Math.round(doneT/totalT*100):0}%，停滯：${stalled.map(p=>p.name).join("、")||"無"}`;
+      try{
+        const arr=await callJSON(
+          `你是 john117 的 AI 工作助手。用戶停止操作 30 秒，給出 3 個簡短的進度回報或行動建議（不要包含趨勢比較，那個另外處理）。
+純 JSON 陣列（不含markdown）：[{"icon":"💡","label":"8字內標題","desc":"一句話具體建議（18字內）"}]`,
+          ctx, 400);
+        setTips(Array.isArray(arr)?arr.slice(0,3):[]);
+      }catch{
+        const pct=totalT?Math.round(doneT/totalT*100):0;
+        setTips([
+          {icon:"☕",label:"稍作休息",desc:"已停止操作 30 秒，建議喝杯水再繼續"},
+          {icon:"📋",label:"進度確認",desc:`${projects.length} 個專案，整體完成 ${pct}%`},
+          {icon:"⏰",label:"停滯警告",desc:stalled.length?`「${stalled[0]?.name}」需要跟進`:"目前無停滯專案"},
+        ]);
+      }
+      setPhase("ready");
+    })();
+  },[]);
+
+  /* ── Trend compare: pick project then search ── */
+  const startTrendPick=()=>setPhase("picking");
+
+  const doTrendCompare=async(proj)=>{
+    if(requestLock.current) return;
+    setSelectedProj(proj); setPhase("trending");
+    setTrendLoading(true); requestLock.current=true;
+    const tasks=(proj.tasks||[]).map(t=>t.name).join("、");
+    const sys=`你是 john117 指揮中心的趨勢分析師。
+任務：把用戶的專案工作與最新市場趨勢做對比，給出具體的方向調整建議。
+
+請做以下事情：
+1. 用 web_search 搜尋與此專案相關的最新市場趨勢（最近 3 個月）
+2. 找出 3 個市場正在往哪個方向走
+3. 對比用戶的工作方向，指出：哪些地方與趨勢吻合、哪些可能需要調整
+4. 給出 2-3 個具體的調整思考點
+
+用繁體中文回答，結構清晰，每個要點不超過 2 句話。`;
+    const user=`專案名稱：${proj.name}
+專案摘要：${proj.summary||"無"}
+工作項目：${tasks}
+部門：${proj.deptName||"未分配"}`;
+    try{
+      const text=await callClaude(sys,user,900,true);
+      setTrendResult(text);
+      setPhase("compared");
+    }catch(e){
+      setTrendResult(`趨勢搜尋失敗：${e.message}`);
+      setPhase("compared");
+    }finally{
+      setTrendLoading(false); requestLock.current=false;
+    }
+  };
+
+  /* ── Free Q&A ── */
+  const askAssistant=async()=>{
+    if(!q.trim()||requestLock.current||chatLoading) return;
+    setChatLoading(true); requestLock.current=true;
+    const ctx=projects.map(p=>`「${p.name}」${Math.round((p.tasks||[]).filter(t=>t.done).length/Math.max(1,(p.tasks||[]).length)*100)}%`).join("、")||"無";
+    try{
+      const text=await callClaude(
+        `你是 john117 指揮中心的 AI 助手，根據專案狀態給具體、簡潔回答。繁體中文，語氣友善。專案：${ctx}`,
+        q,500);
+      setReply(text); setPhase("chat");
+    }catch(e){setReply(`抱歉：${e.message}`);}
+    finally{setChatLoading(false); requestLock.current=false;}
+  };
+
+  /* ── Shared header ── */
+  const Header=({subtitle})=>(
+    <div style={{padding:"13px 16px 11px",background:`linear-gradient(135deg,${C.blue}22,transparent)`,
+      borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+      <div style={{width:34,height:34,borderRadius:"50%",background:C.blue,display:"flex",
+        alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>✦</div>
+      <div style={{flex:1}}>
+        <div style={{fontSize:13,fontWeight:700,color:C.ink}}>AI 助手</div>
+        <div style={{fontSize:10,color:C.ink3}}>{subtitle}</div>
+      </div>
+      <button onClick={onDismiss}
+        style={{background:"transparent",border:"none",color:C.ink3,fontSize:18,
+          cursor:"pointer",padding:"4px",lineHeight:1,flexShrink:0}}>×</button>
+    </div>
+  );
+
+  return(
+    <div style={{position:"fixed",inset:0,zIndex:500,display:"flex",alignItems:"flex-end",
+      justifyContent:"flex-end",padding:16,pointerEvents:"none"}}>
+      <div style={{pointerEvents:"auto",width:340,maxHeight:"88vh",background:C.panel,
+        border:`1px solid ${C.borderB}`,borderRadius:14,overflow:"hidden",
+        display:"flex",flexDirection:"column",
+        boxShadow:`0 8px 48px rgba(0,0,0,0.65), 0 0 0 1px ${C.blue}33`,
+        animation:"_slideUp .3s ease-out"}}>
+        <style>{`@keyframes _slideUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}`}</style>
+
+        {/* ── LOADING ── */}
+        {phase==="loading"&&(
+          <>
+            <Header subtitle="你已停止操作 30 秒"/>
+            <div style={{padding:"22px 16px",display:"flex",gap:11,alignItems:"center",color:C.ink3,fontSize:13}}>
+              <Spin size={16}/> 正在分析你的進度…
+            </div>
+          </>
+        )}
+
+        {/* ── READY: tips + trend prompt ── */}
+        {phase==="ready"&&(
+          <>
+            <Header subtitle="你已停止操作 30 秒，需要幫忙嗎？"/>
+            <div style={{flex:1,overflowY:"auto"}}>
+              {/* Tips */}
+              <div style={{padding:"11px 14px 0"}}>
+                <div style={{fontSize:10,letterSpacing:".07em",textTransform:"uppercase",color:C.ink4,
+                  fontFamily:"monospace",marginBottom:8}}>進度回報</div>
+                {tips.map((tip,i)=>(
+                  <div key={i} style={{display:"flex",gap:10,padding:"8px 0",
+                    borderBottom:i<tips.length-1?`1px solid ${C.border}`:"none"}}>
+                    <span style={{fontSize:15,flexShrink:0,lineHeight:1.5}}>{tip.icon}</span>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:12,fontWeight:600,color:C.ink}}>{tip.label}</div>
+                      <div style={{fontSize:11,color:C.ink3,marginTop:1,lineHeight:1.4}}>{tip.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Trend compare prompt */}
+              <div style={{margin:"12px 14px",padding:"13px",
+                background:`linear-gradient(135deg,${C.acc}10,${C.blue}08)`,
+                border:`1px solid ${C.acc}33`,borderRadius:9}}>
+                <div style={{display:"flex",gap:9,alignItems:"flex-start",marginBottom:10}}>
+                  <span style={{fontSize:18,flexShrink:0}}>📡</span>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:700,color:C.ink,marginBottom:2}}>要和市場趨勢比一比嗎？</div>
+                    <div style={{fontSize:11,color:C.ink3,lineHeight:1.5}}>
+                      挑一個進行中的專案，助手會即時搜尋最新市場動態，告訴你方向是否需要調整。
+                    </div>
+                  </div>
+                </div>
+                {projects.length>0
+                  ? <button onClick={startTrendPick}
+                      style={{width:"100%",padding:"8px 0",background:C.blue,color:"#fff",
+                        border:"none",borderRadius:20,fontSize:12,fontWeight:600,
+                        cursor:"pointer",fontFamily:"inherit",letterSpacing:".02em"}}>
+                      選一個專案來比較 →
+                    </button>
+                  : <div style={{fontSize:11,color:C.ink4,textAlign:"center",padding:"4px 0"}}>
+                      尚無進行中專案，先新增任務吧
+                    </div>
+                }
+              </div>
+
+              {/* Chat input */}
+              <div style={{padding:"0 14px 14px"}}>
+                <div style={{fontSize:10,color:C.ink4,marginBottom:6}}>或直接問助手任何問題</div>
+                <div style={{display:"flex",gap:7}}>
+                  <input value={q} onChange={e=>setQ(e.target.value)}
+                    onKeyDown={e=>e.key==="Enter"&&!chatLoading&&askAssistant()}
+                    placeholder="問助手…"
+                    style={{flex:1,padding:"7px 11px",background:C.bg,border:`1px solid ${C.border}`,
+                      borderRadius:6,color:C.ink,fontSize:12,outline:"none",fontFamily:"inherit"}}/>
+                  <button onClick={askAssistant} disabled={chatLoading||!q.trim()}
+                    style={{padding:"7px 12px",background:C.blue,color:"#fff",border:"none",borderRadius:20,
+                      fontSize:12,cursor:chatLoading?"not-allowed":"pointer",fontFamily:"inherit",
+                      opacity:chatLoading?.6:1,flexShrink:0}}>
+                    {chatLoading?<Spin size={12} col="#fff"/>:"→"}
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div style={{padding:"9px 14px",borderTop:`1px solid ${C.border}`,flexShrink:0}}>
+              <button onClick={onDismiss}
+                style={{width:"100%",padding:"7px",background:"transparent",border:`1px solid ${C.border}`,
+                  borderRadius:6,color:C.ink3,fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>
+                沒事，繼續工作
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* ── PICKING: choose project ── */}
+        {phase==="picking"&&(
+          <>
+            <Header subtitle="選一個專案與市場趨勢比較"/>
+            <div style={{flex:1,overflowY:"auto",padding:"12px 14px"}}>
+              <div style={{fontSize:11,color:C.ink3,marginBottom:10,lineHeight:1.5}}>
+                助手會搜尋最新市場動態，對比你的工作方向，給出調整建議。
+              </div>
+              {projects.map((p,i)=>{
+                const di=DEPTS.findIndex(d=>d.id===p.dept);
+                const dc=di>=0?DC[di%DC.length]:C.acc;
+                const done=(p.tasks||[]).filter(t=>t.done).length;
+                const tot=(p.tasks||[]).length;
+                const pct=tot?Math.round(done/tot*100):0;
+                return(
+                  <button key={p.id} onClick={()=>doTrendCompare(p)}
+                    style={{width:"100%",textAlign:"left",padding:"11px 12px",borderRadius:8,
+                      border:`1px solid ${C.border}`,background:C.panelAlt,
+                      marginBottom:7,cursor:"pointer",fontFamily:"inherit",
+                      display:"flex",gap:10,alignItems:"center",transition:"border-color .15s"}}>
+                    <span style={{fontSize:18,flexShrink:0}}>{DEPTS.find(d=>d.id===p.dept)?.icon||"📋"}</span>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:13,fontWeight:600,color:C.ink,
+                        overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name}</div>
+                      <div style={{fontSize:10,color:C.ink3,marginTop:2}}>{p.deptName||"—"} · {pct}% 完成</div>
+                    </div>
+                    <div style={{width:34,height:34,flexShrink:0}}>
+                      <Ring pct={pct} size={34} stroke={3} col={dc}/>
+                    </div>
+                  </button>
+                );
+              })}
+              <button onClick={()=>setPhase("ready")}
+                style={{width:"100%",padding:"7px",background:"transparent",border:`1px solid ${C.border}`,
+                  borderRadius:6,color:C.ink3,fontSize:11,cursor:"pointer",fontFamily:"inherit",marginTop:3}}>
+                ← 返回
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* ── TRENDING: searching ── */}
+        {phase==="trending"&&(
+          <>
+            <Header subtitle={`正在搜尋「${selectedProj?.name}」的市場趨勢…`}/>
+            <div style={{flex:1,padding:"22px 16px",display:"flex",flexDirection:"column",
+              alignItems:"center",justifyContent:"center",gap:14}}>
+              <Spin size={32} col={C.acc}/>
+              <div style={{textAlign:"center"}}>
+                <div style={{fontSize:13,fontWeight:600,color:C.ink,marginBottom:6}}>即時搜尋市場動態中</div>
+                <div style={{fontSize:11,color:C.ink3,lineHeight:1.6}}>
+                  正在掃描 GitHub Trending、HuggingFace、<br/>Reddit、X 等平台的最新訊號…
+                </div>
+              </div>
+              <div style={{width:"100%",height:3,background:C.border,borderRadius:2,overflow:"hidden"}}>
+                <div style={{height:"100%",background:`linear-gradient(90deg,${C.blue},${C.acc})`,
+                  borderRadius:2,animation:"_scanBar 1.8s ease-in-out infinite"}}/>
+                <style>{`@keyframes _scanBar{0%{width:0;margin-left:0}50%{width:70%;margin-left:0}100%{width:0;margin-left:100%}}`}</style>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ── COMPARED: show result ── */}
+        {phase==="compared"&&(
+          <>
+            <Header subtitle={`趨勢比較：${selectedProj?.name}`}/>
+            <div style={{flex:1,overflowY:"auto",padding:"14px"}}>
+              {/* Trend result */}
+              <div style={{background:C.bg,borderRadius:8,border:`1px solid ${C.border}`,
+                padding:"12px 13px",marginBottom:12}}>
+                <div style={{fontSize:10,letterSpacing:".07em",textTransform:"uppercase",
+                  color:C.acc,fontFamily:"monospace",marginBottom:8}}>
+                  📡 市場趨勢 vs 你的專案
+                </div>
+                <div style={{fontSize:12,color:C.ink2,lineHeight:1.75,whiteSpace:"pre-wrap",
+                  maxHeight:260,overflowY:"auto"}}>{trendResult}</div>
+              </div>
+
+              {/* Follow-up Q */}
+              <div style={{fontSize:10,color:C.ink4,marginBottom:6}}>對這個分析有疑問？繼續問</div>
+              <div style={{display:"flex",gap:7,marginBottom:10}}>
+                <input value={q} onChange={e=>setQ(e.target.value)}
+                  onKeyDown={e=>e.key==="Enter"&&!chatLoading&&askAssistant()}
+                  placeholder="深入詢問或請助手調整建議…"
+                  style={{flex:1,padding:"7px 11px",background:C.bg,border:`1px solid ${C.border}`,
+                    borderRadius:6,color:C.ink,fontSize:12,outline:"none",fontFamily:"inherit"}}/>
+                <button onClick={askAssistant} disabled={chatLoading||!q.trim()}
+                  style={{padding:"7px 12px",background:C.blue,color:"#fff",border:"none",borderRadius:20,
+                    fontSize:12,cursor:chatLoading?"not-allowed":"pointer",fontFamily:"inherit",
+                    opacity:chatLoading?.6:1,flexShrink:0}}>
+                  {chatLoading?<Spin size={12} col="#fff"/>:"→"}
+                </button>
+              </div>
+
+              {reply&&(
+                <div style={{background:C.bg,borderRadius:8,border:`1px solid ${C.border}`,
+                  padding:"10px 12px",marginBottom:10}}>
+                  <div style={{fontSize:12,color:C.ink2,lineHeight:1.7,whiteSpace:"pre-wrap"}}>{reply}</div>
+                </div>
+              )}
+
+              <div style={{display:"flex",gap:7}}>
+                <button onClick={startTrendPick}
+                  style={{flex:1,padding:"7px 0",background:"transparent",border:`1px solid ${C.border}`,
+                    borderRadius:6,color:C.ink3,fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>
+                  換一個專案
+                </button>
+                <button onClick={onDismiss}
+                  style={{flex:1,padding:"7px 0",background:"transparent",border:`1px solid ${C.border}`,
+                    borderRadius:6,color:C.ink3,fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>
+                  繼續工作
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ── CHAT: free Q&A reply ── */}
+        {phase==="chat"&&(
+          <>
+            <Header subtitle="AI 助手回覆"/>
+            <div style={{flex:1,overflowY:"auto",padding:"14px"}}>
+              <div style={{background:C.bg,borderRadius:8,border:`1px solid ${C.border}`,
+                padding:"11px 13px",marginBottom:12}}>
+                <div style={{fontSize:12,color:C.ink2,lineHeight:1.75,whiteSpace:"pre-wrap",
+                  maxHeight:240,overflowY:"auto"}}>{reply}</div>
+              </div>
+              <div style={{display:"flex",gap:7,marginBottom:10}}>
+                <input value={q} onChange={e=>setQ(e.target.value)}
+                  onKeyDown={e=>e.key==="Enter"&&!chatLoading&&askAssistant()}
+                  placeholder="繼續追問…"
+                  style={{flex:1,padding:"7px 11px",background:C.bg,border:`1px solid ${C.border}`,
+                    borderRadius:6,color:C.ink,fontSize:12,outline:"none",fontFamily:"inherit"}}/>
+                <button onClick={askAssistant} disabled={chatLoading||!q.trim()}
+                  style={{padding:"7px 12px",background:C.blue,color:"#fff",border:"none",borderRadius:20,
+                    fontSize:12,cursor:chatLoading?"not-allowed":"pointer",fontFamily:"inherit",
+                    opacity:chatLoading?.6:1,flexShrink:0}}>
+                  {chatLoading?<Spin size={12} col="#fff"/>:"→"}
+                </button>
+              </div>
+              <div style={{display:"flex",gap:7}}>
+                <button onClick={()=>{setPhase("ready");setReply("");setQ("");}}
+                  style={{flex:1,padding:"7px 0",background:"transparent",border:`1px solid ${C.border}`,
+                    borderRadius:6,color:C.ink3,fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>
+                  ← 返回
+                </button>
+                <button onClick={onDismiss}
+                  style={{flex:1,padding:"7px 0",background:"transparent",border:`1px solid ${C.border}`,
+                    borderRadius:6,color:C.ink3,fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>
+                  繼續工作
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   IDLE TIMER HOOK
+═══════════════════════════════════════════ */
+function useIdleTimer(timeout=30000){
+  const [idle,setIdle]=useState(false);
+  const timerRef=useRef(null);
+
+  const reset=useCallback(()=>{
+    setIdle(false);
+    if(timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current=setTimeout(()=>setIdle(true),timeout);
+  },[timeout]);
+
+  useEffect(()=>{
+    const events=["mousemove","mousedown","keydown","touchstart","scroll","click","pointermove"];
+    events.forEach(e=>window.addEventListener(e,reset,{passive:true}));
+    reset(); // start timer immediately
+    return ()=>{
+      events.forEach(e=>window.removeEventListener(e,reset));
+      if(timerRef.current) clearTimeout(timerRef.current);
+    };
+  },[reset]);
+
+  return {idle, dismiss:()=>setIdle(false)};
+}
+
+/* ═══════════════════════════════════════════
+   ROOT APP
+═══════════════════════════════════════════ */
+function App(){
+  const {isMobile,isTablet,isDesktop} = useBreakpoint();
+  const [roleKey,setRoleKey] = useState((typeof window!=="undefined"&&window.__MC_ROLE__)||"viewer");
+  useEffect(()=>{
+    const fn=e=>setRoleKey((e&&e.detail)||window.__MC_ROLE__||"viewer");
+    window.addEventListener("mc-role",fn);
+    return ()=>window.removeEventListener("mc-role",fn);
+  },[]);
+  const perm = ROLE_PERM[roleKey]||ROLE_PERM.viewer;
+  const [projects,setProjects] = useState([]);
+  const [activeDept,setActiveDept] = useState(null);   /* {dept, idx} */
+  const [mobileTab,setMobileTab] = useState("dash");   /* dash | task | assist */
+  const [taskOpen,setTaskOpen] = useState(false);      /* desktop task drawer */
+  const [desktopTab,setDesktopTab] = useState("assist"); /* task | assist */
+  const requestLock = useRef(false);
+  const {idle, dismiss:dismissIdle} = useIdleTimer(30000);
+
+  const totalT=projects.reduce((a,p)=>a+(p.tasks||[]).length,0);
+  const doneT=projects.reduce((a,p)=>a+(p.tasks||[]).filter(t=>t.done).length,0);
+  const gPct=totalT?Math.round(doneT/totalT*100):0;
+
+  const handleSelectDept=(dept,idx)=>setActiveDept({dept,idx});
+
+  return(
+    <RoleCtx.Provider value={perm}>
+    <div style={{background:C.bg,minHeight:"100vh",fontFamily:"'Inter','Clear Sans','Helvetica Neue',Arial,sans-serif",
+      display:"flex",flexDirection:"column",color:C.ink,position:"relative"}}>
+
+      <style>{`
+        @keyframes _sp{to{transform:rotate(360deg)}}
+        *{box-sizing:border-box;margin:0;padding:0}
+        a{color:${C.acc};text-decoration:none}
+        ::-webkit-scrollbar{width:4px;height:4px}
+        ::-webkit-scrollbar-track{background:transparent}
+        ::-webkit-scrollbar-thumb{background:${C.borderB};border-radius:2px}
+        input,select,textarea{color-scheme:dark}
+        button:focus-visible{outline:2px solid ${C.acc};outline-offset:2px}
+        @media(hover:hover){
+          button:not(:disabled):hover{opacity:0.85}
+        }
+      `}</style>
+
+      {/* ═══ TOP NAV BAR ═══ */}
+      <nav style={{background:C.nav,borderTop:`3px solid ${C.blue}`,
+        borderBottom:`1px solid ${C.border}`,height:isMobile?52:56,
+        padding:`0 ${isMobile?14:24}px`,
+        display:"flex",alignItems:"center",gap:12,
+        position:"sticky",top:0,zIndex:100,flexShrink:0}}>
+
+        {/* Brand */}
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <div style={{width:8,height:8,borderRadius:2,background:C.blue}}/>
+          <span style={{fontWeight:800,fontSize:isMobile?14:16,letterSpacing:"-.5px",color:C.ink}}>
+            指揮中心
+          </span>
+          {!isMobile&&<span style={{color:C.borderB,margin:"0 4px"}}>·</span>}
+          {!isMobile&&<span style={{fontWeight:300,fontSize:14,color:C.ink2}}>john117</span>}
+          <span style={{fontSize:10,padding:"2px 8px",borderRadius:3,background:C.accL,
+            color:C.acc,fontFamily:"monospace",letterSpacing:".04em",marginLeft:4}}>DASHBOARD</span>
+        </div>
+
+        <div style={{flex:1}}/>
+
+        {/* Desktop: Global progress */}
+        {!isMobile&&(
+          <div style={{display:"flex",alignItems:"center",gap:10,fontSize:12}}>
+            <span style={{color:C.ink3,fontFamily:"monospace"}}>{doneT}/{totalT}</span>
+            <div style={{width:80,height:3,background:C.border,borderRadius:2,overflow:"hidden"}}>
+              <div style={{height:"100%",width:`${gPct}%`,background:gPct===100?C.green:C.acc,
+                borderRadius:2,transition:"width .6s"}}/>
+            </div>
+            <span style={{fontFamily:"monospace",color:gPct===100?C.green:C.ink2,fontWeight:600}}>{gPct}%</span>
+            <span style={{color:C.borderB}}>·</span>
+            <span style={{color:C.ink3,fontFamily:"monospace"}}>
+              {projects.reduce((a,p)=>a+(p.totalTokens||0),0).toLocaleString()} tok
+            </span>
+          </div>
+        )}
+
+        {/* Role badge + logout */}
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <span style={{fontSize:10,padding:"3px 9px",borderRadius:20,fontFamily:"monospace",letterSpacing:".04em",whiteSpace:"nowrap",
+            background:perm.key==="admin"?C.amberL:perm.key==="editor"?C.accL:"rgba(106,142,191,.14)",
+            color:perm.key==="admin"?C.amber:perm.key==="editor"?C.acc:C.ink3}}>
+            {perm.label}
+          </span>
+          <button onClick={()=>window.lgLogout&&window.lgLogout()}
+            style={{background:"transparent",border:`1px solid ${C.border}`,color:C.ink3,fontSize:11,
+              borderRadius:20,padding:"4px 11px",cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>登出</button>
+        </div>
+
+        {/* Desktop: open task button */}
+        {isDesktop&&perm.add&&(
+          <Btn small variant="primary" onClick={()=>setTaskOpen(o=>!o)}>
+            ＋ 新增任務
+          </Btn>
+        )}
+
+        {/* Mobile: progress pill */}
+        {isMobile&&(
+          <div style={{fontSize:11,fontFamily:"monospace",color:gPct===100?C.green:C.acc}}>
+            {gPct}% · {doneT}/{totalT}
+          </div>
+        )}
+      </nav>
+
+      {/* ═══ BODY ═══ */}
+      <div style={{display:"flex",flex:1,overflow:"hidden",minHeight:0}}>
+
+        {/* ── LEFT ICON RAIL (desktop only) ── */}
+        {!isMobile&&(
+          <div style={{width:54,background:C.nav,borderRight:`1px solid ${C.border}`,
+            display:"flex",flexDirection:"column",alignItems:"center",
+            padding:"12px 0",gap:5,flexShrink:0,overflowY:"auto"}}>
+            {DEPTS.map((d,i)=>{
+              const col=DC[i%DC.length];
+              const has=projects.some(p=>p.dept===d.id);
+              const active=activeDept?.dept.id===d.id;
+              return(
+                <button key={d.id} title={`${d.name}　${d.tag}`} onClick={()=>handleSelectDept(d,i)}
+                  style={{width:38,height:38,borderRadius:8,
+                    border:`1px solid ${active?col:C.border}`,
+                    background:active?`${col}22`:C.panelAlt,
+                    cursor:"pointer",display:"flex",alignItems:"center",
+                    justifyContent:"center",fontSize:18,position:"relative",
+                    transition:"all .2s",flexShrink:0}}>
+                  {d.icon}
+                  {has&&<div style={{position:"absolute",top:3,right:3,
+                    width:6,height:6,borderRadius:"50%",background:col,
+                    border:`1px solid ${C.nav}`}}/>}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── MAIN DASHBOARD ── */}
+        {(!isMobile || mobileTab==="dash")&&(
+          <DashboardContent
+            projects={projects} setProjects={setProjects}
+            requestLock={requestLock} onSelectDept={handleSelectDept}
+            isMobile={isMobile}/>
+        )}
+
+        {/* ── DESKTOP RIGHT PANEL ── */}
+        {isDesktop&&(
+          <div style={{width:288,borderLeft:`1px solid ${C.border}`,background:C.panel,
+            display:"flex",flexDirection:"column",flexShrink:0}}>
+            {/* Sub-tabs */}
+            <div style={{display:"flex",borderBottom:`1px solid ${C.border}`,flexShrink:0}}>
+              {(perm.add?[["task","＋ 任務"],["assist","助手"]]:[["assist","助手"]]).map(([v,l])=>(
+                <button key={v}
+                  onClick={()=>{ setDesktopTab(v); if(v==="task") setTaskOpen(true); else setTaskOpen(false); }}
+                  style={{flex:1,padding:"10px 0",fontSize:12,fontWeight:desktopTab===v?600:400,
+                    color:desktopTab===v?C.acc:C.ink3,background:"transparent",border:"none",
+                    borderBottom:`2px solid ${desktopTab===v?C.acc:"transparent"}`,
+                    cursor:"pointer",fontFamily:"inherit",transition:"color .15s",marginBottom:-1}}>
+                  {l}
+                </button>
+              ))}
+            </div>
+            <div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column"}}>
+              {(desktopTab==="task"&&perm.add)
+                ? <TaskDrawer projects={projects} setProjects={setProjects}
+                    requestLock={requestLock} onClose={()=>setDesktopTab("assist")} isMobile={false}/>
+                : <AssistantPanel projects={projects} requestLock={requestLock}/>
+              }
+            </div>
+          </div>
+        )}
+
+        {/* Tablet: show assistant in side panel */}
+        {isTablet&&(
+          <div style={{width:250,borderLeft:`1px solid ${C.border}`,background:C.panel,
+            display:"flex",flexDirection:"column",flexShrink:0}}>
+            <AssistantPanel projects={projects} requestLock={requestLock}/>
+          </div>
+        )}
+      </div>
+
+      {/* ═══ MOBILE: Bottom Task Sheet ═══ */}
+      {isMobile&&taskOpen&&perm.add&&(
+        <TaskDrawer projects={projects} setProjects={setProjects}
+          requestLock={requestLock} onClose={()=>setTaskOpen(false)} isMobile={true}/>
+      )}
+
+      {/* ═══ MOBILE: Bottom Tab Bar ═══ */}
+      {isMobile&&(
+        <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:90,
+          background:C.nav,borderTop:`1px solid ${C.border}`,
+          display:"flex",height:60,paddingBottom:4}}>
+          {[
+            {id:"dash",icon:"⊞",label:"總覽"},
+            ...(perm.add?[{id:"task",icon:"＋",label:"新任務",action:()=>setTaskOpen(true)}]:[]),
+            {id:"assist",icon:"✦",label:"助手"},
+          ].map(tab=>(
+            <button key={tab.id} onClick={tab.action||(()=>setMobileTab(tab.id))}
+              style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",
+                justifyContent:"center",gap:3,background:"transparent",border:"none",
+                cursor:"pointer",fontFamily:"inherit",
+                color:(tab.action?false:mobileTab===tab.id)?C.acc:C.ink3,
+                position:"relative"}}>
+              {tab.id==="task"
+                ? <div style={{width:40,height:40,borderRadius:20,background:C.blue,
+                    display:"flex",alignItems:"center",justifyContent:"center",
+                    fontSize:20,color:"#fff",marginTop:-14,
+                    boxShadow:`0 2px 12px ${C.blue}66`}}>{tab.icon}</div>
+                : <span style={{fontSize:20}}>{tab.icon}</span>
+              }
+              {tab.id!=="task"&&<span style={{fontSize:10}}>{tab.label}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* ═══ MOBILE: Assistant overlay ═══ */}
+      {isMobile&&mobileTab==="assist"&&(
+        <div style={{position:"fixed",inset:"56px 0 60px",zIndex:80,background:C.panel,
+          display:"flex",flexDirection:"column",overflowY:"auto"}}>
+          <AssistantPanel projects={projects} requestLock={requestLock}/>
+        </div>
+      )}
+
+      {/* ═══ IDLE ASSISTANT ═══ */}
+      {idle&&perm.ai&&(
+        <IdleAssistant projects={projects} requestLock={requestLock} onDismiss={dismissIdle}/>
+      )}
+
+      {/* ═══ DEPT SLIDE PANEL ═══ */}
+      {activeDept&&(
+        <DeptPanel dept={activeDept.dept} deptIdx={activeDept.idx}
+          projects={projects} onClose={()=>setActiveDept(null)} requestLock={requestLock}/>
+      )}
+    </div>
+    </RoleCtx.Provider>
+  );
+}
+
+
+/* Mount */
+const rootEl = document.getElementById('root');
+const reactRoot = ReactDOM.createRoot(rootEl);
+reactRoot.render(<App />);
+</script>
+
+</body>
+</html>
