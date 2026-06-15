@@ -85,6 +85,14 @@ button:focus-visible { outline: 2px solid #00AEEF; outline-offset: 2px; }
   transition: background .2s;
 }
 .ak-btn:hover { background: #0080D8; }
+.ak-test-btn { width:100%; margin-top:10px; padding:10px; background:transparent;
+  border:1px solid #1E3454; color:#9FB6D6; border-radius:8px; font-size:12px;
+  cursor:pointer; font-family:inherit; transition:.15s; }
+.ak-test-btn:hover { border-color:#0068B5; color:#fff; }
+.ak-test-result { font-size:11px; line-height:1.6; margin-top:9px; font-family:monospace;
+  word-break:break-word; white-space:pre-wrap; }
+.ak-test-result.ok { color:#3FB950; }
+.ak-test-result.bad { color:#FF6B6B; }
 .ak-note { font-size: 11px; color: #364F72; margin-top: 12px; text-align: center; line-height: 1.5; }
 
 /* ── Status bar (bottom-right) ── */
@@ -226,6 +234,8 @@ body.role-viewer #ak-bar { display:none !important; }
           <option value="mistralai/mistral-large-2411">Mistral Large 2411</option>
         </optgroup>
       </select>
+      <button type="button" class="ak-test-btn" onclick="testOpenRouterKey()">🔍 測試金鑰連線</button>
+      <div id="ak-test-result" class="ak-test-result"></div>
     </div>
 
     <button class="ak-btn" id="ak-btn">確認並進入指揮中心 →</button>
@@ -382,6 +392,38 @@ function updateStatusBar(){
     badge.style.background = 'rgba(0,104,181,0.2)';
     badge.style.color = '#0068B5';
     label.textContent = 'API Key 已設定';
+  }
+}
+
+async function testOpenRouterKey(){
+  const out = document.getElementById('ak-test-result');
+  const key = (document.getElementById('ak-input-openrouter').value || '').trim();
+  out.className = 'ak-test-result';
+  if(!key){ out.className='ak-test-result bad'; out.textContent='請先在上方貼上 OpenRouter 金鑰再測試。'; return; }
+  if(!key.startsWith('sk-or-')){ out.className='ak-test-result bad'; out.textContent='⚠ 這不像 OpenRouter 金鑰（應為 sk-or- 開頭）。'; return; }
+  out.textContent = '測試中…';
+  let r, d;
+  try {
+    r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + key },
+      body: JSON.stringify({ model:'anthropic/claude-haiku-4-5', messages:[{role:'user',content:'hi'}], max_tokens:5 })
+    });
+  } catch(e){
+    out.className='ak-test-result bad';
+    out.textContent='✗ 無法連線（網路或 CORS 問題）：' + e.message;
+    return;
+  }
+  try { d = await r.json(); } catch(e){ d = {}; }
+  if(r.ok && d.choices){
+    out.className='ak-test-result ok';
+    out.textContent='✓ 金鑰正常！可以正常使用。';
+  } else {
+    const msg = (d.error && (d.error.message||d.error.type)) || JSON.stringify(d.error||d||{});
+    out.className='ak-test-result bad';
+    out.textContent='✗ OpenRouter ' + r.status + '：' + msg
+      + (r.status===401 ? '\n→ 金鑰無效或被拒，請到 openrouter.ai/keys 重新產生。' : '')
+      + (r.status===402 ? '\n→ 餘額不足，請到 openrouter.ai/credits 加值。' : '');
   }
 }
 
@@ -622,9 +664,7 @@ async function callClaude(sys, user, max=900, search=false){
       method:"POST",
       headers:{
         "Content-Type":"application/json",
-        "Authorization": `Bearer ${key.trim()}`,
-        "HTTP-Referer": window.location.origin || "https://john117.app",
-        "X-Title": "john117 Mission Control"
+        "Authorization": "Bearer " + key.trim()
       },
       body: JSON.stringify(body)
     });
