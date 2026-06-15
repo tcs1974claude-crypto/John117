@@ -569,10 +569,12 @@ function useBreakpoint(){
 ═══════════════════════════════════════════ */
 async function callClaude(sys, user, max=900, search=false){
   const {provider, key, orModel} = getProviderConfig();
-  if(!key) throw new Error("未設定 API Key — 請重新整理頁面後輸入");
+  if(!key || !key.trim()) throw new Error("尚未設定 API Key — 請點右上角重新輸入金鑰");
 
   /* ── Anthropic direct ── */
   if(provider === 'anthropic'){
+    if(/^sk-or-/.test(key))
+      throw new Error("金鑰不符：這是 OpenRouter 金鑰（sk-or-），但目前選的是 Anthropic 直連。請在右上角重新設定，改選 OpenRouter。");
     const body = {
       model: "claude-sonnet-4-6",
       max_tokens: max,
@@ -580,22 +582,32 @@ async function callClaude(sys, user, max=900, search=false){
       messages: [{role:"user", content:user}]
     };
     if(search) body.tools = [{type:"web_search_20250305", name:"web_search"}];
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        "x-api-key": key,
-        "anthropic-version":"2023-06-01",
-        "anthropic-dangerous-direct-browser-access":"true"
-      },
-      body: JSON.stringify(body)
-    });
-    const d = await r.json();
-    if(d.error) throw new Error(d.error.message || JSON.stringify(d.error));
+    let r;
+    try {
+      r = await fetch("https://api.anthropic.com/v1/messages", {
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json",
+          "x-api-key": key.trim(),
+          "anthropic-version":"2023-06-01",
+          "anthropic-dangerous-direct-browser-access":"true"
+        },
+        body: JSON.stringify(body)
+      });
+    } catch(netErr){
+      throw new Error("無法連線到 Anthropic（可能是網路或瀏覽器 CORS 阻擋）。建議改用 OpenRouter 供應商。");
+    }
+    const d = await r.json().catch(()=>({}));
+    if(!r.ok || d.error){
+      const msg = (d.error && (d.error.message||d.error.type)) || JSON.stringify(d.error||{});
+      throw new Error(`Anthropic ${r.status}：${msg}`);
+    }
     return (d.content||[]).map(b=>b.type==="text"?b.text:"").join("").trim();
   }
 
   /* ── OpenRouter (OpenAI-compatible) ── */
+  if(/^sk-ant-/.test(key))
+    throw new Error("金鑰不符：這是 Anthropic 金鑰（sk-ant-），但目前選的是 OpenRouter。請在右上角重新設定，改選 Anthropic 直連。");
   const model = orModel || "anthropic/claude-sonnet-4-6";
   const messages = [
     {role:"system", content:sys},
@@ -604,18 +616,26 @@ async function callClaude(sys, user, max=900, search=false){
   const body = {model, max_tokens:max, messages};
   // OpenRouter web search plugin (replaces Anthropic web_search tool)
   if(search) body.plugins = [{id:"web", max_results:5}];
-  const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method:"POST",
-    headers:{
-      "Content-Type":"application/json",
-      "Authorization": `Bearer ${key}`,
-      "HTTP-Referer": "https://john117-mission-control.local",
-      "X-Title": "john117 Mission Control"
-    },
-    body: JSON.stringify(body)
-  });
-  const d = await r.json();
-  if(d.error) throw new Error(d.error.message || JSON.stringify(d.error));
+  let r;
+  try {
+    r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "Authorization": `Bearer ${key.trim()}`,
+        "HTTP-Referer": window.location.origin || "https://john117.app",
+        "X-Title": "john117 Mission Control"
+      },
+      body: JSON.stringify(body)
+    });
+  } catch(netErr){
+    throw new Error("無法連線到 OpenRouter（網路問題），請稍後再試。");
+  }
+  const d = await r.json().catch(()=>({}));
+  if(!r.ok || d.error){
+    const msg = (d.error && (d.error.message||d.error.type)) || JSON.stringify(d.error||{});
+    throw new Error(`OpenRouter ${r.status}：${msg}`);
+  }
   return (d.choices||[]).map(c=>c.message?.content||"").join("").trim();
 }
 
