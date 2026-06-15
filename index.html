@@ -475,8 +475,14 @@ const ROLE_PERM = {
 const RoleCtx = React.createContext(ROLE_PERM.viewer);
 const usePerm = () => React.useContext(RoleCtx);
 
-/* Provider config from window (set by plain JS above) */
-function getProviderConfig(){ return window.getProviderConfig ? window.getProviderConfig() : {provider:"anthropic",key:window.__MC_KEY__||"",orModel:""}; }
+/* Provider config — read window state directly (avoid recursive window.getProviderConfig call) */
+function getProviderConfig(){
+  return {
+    provider: window.__MC_PROVIDER__ || "anthropic",
+    key: window.__MC_KEY__ || "",
+    orModel: window.__MC_OR_MODEL__ || "anthropic/claude-sonnet-4-6",
+  };
+}
 
 
 /* ═══════════════════════════════════════════
